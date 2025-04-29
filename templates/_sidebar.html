@@ -1,0 +1,71 @@
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <i class="fas fa-box-open"></i>
+        </div>
+        <h4>GEP</h4>
+        <!-- Exibe o nível de acesso, capitalizado. Usa 'Usuário' como padrão se não estiver definido -->
+        <p class="user-role">{{ session.nivel_acesso|capitalize if session.nivel_acesso else 'Usuário' }}</p>
+    </div>
+
+    <ul class="sidebar-menu">
+        <!-- Item Dashboard -->
+        <li class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">
+            <a href="{{ url_for('dashboard') }}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <!-- Item Produtos -->
+        <li class="{{ 'active' if request.endpoint.startswith('produtos.') and 'categorias' not in request.endpoint else '' }}">
+            <a href="{{ url_for('produtos.produtos_page') }}">
+                <i class="fas fa-boxes"></i>
+                <span>Produtos</span>
+            </a>
+        </li>
+        <!-- Item Categorias -->
+        <li class="{{ 'active' if request.endpoint == 'produtos.categorias' or request.endpoint == 'produtos.categorias' else '' }}">
+             <!-- Corrigido link para categorias -->
+            <a href="{{ url_for('produtos.categorias') }}">
+                <i class="fas fa-tags"></i>
+                <span>Categorias</span>
+            </a>
+        </li>
+        <!-- Item Movimentações -->
+        <li class="{{ 'active' if request.endpoint.startswith('estoque.') else '' }}">
+             <!-- Corrigido link para movimentações -->
+            <a href="{{ url_for('estoque.movimentacoes_page') }}">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Movimentações</span>
+            </a>
+        </li>
+        <!-- Item Fornecedores -->
+        <li class="{{ 'active' if request.endpoint.startswith('fornecedores.') else '' }}">
+             <!-- Corrigido link para fornecedores -->
+            <a href="{{ url_for('fornecedores.fornecedores_page') }}">
+                <i class="fas fa-truck"></i>
+                <span>Fornecedores</span>
+            </a>
+        </li>
+
+        <!-- Item Usuários (Apenas Admin) -->
+        {% if session.nivel_acesso == 'admin' %}
+        <li class="{{ 'active' if request.endpoint.startswith('auth.') and 'logout' not in request.endpoint else '' }}">
+             <!-- Corrigido link para usuários -->
+            <a href="{{ url_for('auth.listar_usuarios') }}">
+                <i class="fas fa-users"></i>
+                <span>Usuários</span>
+            </a>
+        </li>
+        {% endif %}
+
+        <!-- Item Sair (Sempre no final) -->
+        <li class="mt-auto">
+             <!-- Corrigido link para logout -->
+            <a href="{{ url_for('auth.logout') }}">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Sair</span>
+            </a>
+        </li>
+    </ul>
+</div>

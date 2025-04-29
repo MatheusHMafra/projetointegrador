@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark"> <!-- Mantém data-theme aqui -->
+<head>
+    {% include '_head.html' %}
+    {% block title %}Fornecedores - GEP{% endblock %}
+    <!-- Nenhum head_extra necessário por enquanto -->
+</head>
+<body>
+    <div class="d-flex">
+         <!-- Inclui a Sidebar -->
+        {% include '_sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation -->
+            <nav class="navbar sticky-top">
+                <div class="container-fluid">
+                    <button class="btn sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <div class="search-bar">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="busca-fornecedor" class="form-control" placeholder="Buscar fornecedor...">
+                        </div>
+                    </div>
+
+                    <!-- Theme toggle button -->
+                    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session.nome_usuario }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page Content -->
+            <div class="container-fluid mt-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Dashboard Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title"><i class="fas fa-truck me-2"></i>Fornecedores</h1>
+                    <div>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAdicionarFornecedor">
+                            <i class="fas fa-plus me-2"></i>Novo Fornecedor
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de Fornecedores -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-list me-2"></i>Lista de Fornecedores</h5>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="mostrarInativos">
+                                        <label class="form-check-label" for="mostrarInativos">Mostrar inativos</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nome</th>
+                                                <th>CNPJ</th>
+                                                <th>Contato</th>
+                                                <th>Telefone</th>
+                                                <th>Email</th>
+                                                <th>Status</th>
+                                                <th class="text-end">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="fornecedores-tabela">
+                                            <tr>
+                                                <td colspan="7" class="text-center">Carregando fornecedores...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <footer class="footer">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-0">GEP &copy; 2025</p>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <p class="mb-0">v1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            </div> <!-- Fim container-fluid -->
+        </div> <!-- Fim main-content -->
+    </div> <!-- Fim d-flex -->
+
+    <!-- Modais -->
+    <!-- Modal Adicionar Fornecedor -->
+    <div class="modal fade" id="modalAdicionarFornecedor" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Adicionar Fornecedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarFornecedor">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="nomeFornecedor" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nomeFornecedor" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="cnpjFornecedor" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="cnpjFornecedor" placeholder="00.000.000/0000-00">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="telefoneFornecedor" class="form-label">Telefone</label>
+                                <input type="text" class="form-control" id="telefoneFornecedor">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="emailFornecedor" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="emailFornecedor">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="enderecoFornecedor" class="form-label">Endereço</label>
+                            <input type="text" class="form-control" id="enderecoFornecedor">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contatoFornecedor" class="form-label">Nome do Contato</label>
+                            <input type="text" class="form-control" id="contatoFornecedor">
+                        </div>
+                        <div class="mb-3">
+                            <label for="observacoesFornecedor" class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacoesFornecedor" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarFornecedor">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Fornecedor -->
+    <div class="modal fade" id="modalEditarFornecedor" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Editar Fornecedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarFornecedor">
+                        <input type="hidden" id="editFornecedorId">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="editNomeFornecedor" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="editNomeFornecedor" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="editCnpjFornecedor" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="editCnpjFornecedor" placeholder="00.000.000/0000-00">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editTelefoneFornecedor" class="form-label">Telefone</label>
+                                <input type="text" class="form-control" id="editTelefoneFornecedor">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editEmailFornecedor" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="editEmailFornecedor">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEnderecoFornecedor" class="form-label">Endereço</label>
+                            <input type="text" class="form-control" id="editEnderecoFornecedor">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editContatoFornecedor" class="form-label">Nome do Contato</label>
+                            <input type="text" class="form-control" id="editContatoFornecedor">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editObservacoesFornecedor" class="form-label">Observações</label>
+                            <textarea class="form-control" id="editObservacoesFornecedor" rows="3"></textarea>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editAtivoFornecedor">
+                            <label class="form-check-label" for="editAtivoFornecedor">
+                                Fornecedor Ativo
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnAtualizarFornecedor">Atualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Visualizar Produtos do Fornecedor -->
+    <div class="modal fade" id="modalProdutosFornecedor" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-boxes me-2"></i>Produtos do Fornecedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 id="fornecedorProdutosNome" class="mb-3"></h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Categoria</th> <!-- Coluna Adicionada -->
+                                    <th>Preço de Compra</th>
+                                    <th>Preço de Venda</th>
+                                    <th>Estoque</th>
+                                </tr>
+                            </thead>
+                            <tbody id="produtos-fornecedor-tabela">
+                                <tr>
+                                    <td colspan="5" class="text-center">Carregando produtos...</td> <!-- Colspan atualizado -->
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Adicionar paginação para produtos do fornecedor se necessário -->
+                    <nav aria-label="Paginação de produtos do fornecedor" class="mt-3 d-flex justify-content-center">
+                        <ul class="pagination pagination-sm mb-0" id="paginacao-produtos-fornecedor">
+                            <!-- Paginação será inserida aqui via JS -->
+                        </ul>
+                    </nav>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Exclusão -->
+    <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o fornecedor <strong id="excluirFornecedorNome"></strong>?</p>
+                    <p class="text-muted">Esta ação não poderá ser desfeita.</p>
+                    <input type="hidden" id="excluirFornecedorId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+     <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner" style="display: flex;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p>Carregando dados...</p>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification" class="notification-popup" style="display:none;"></div>
+
+    <!-- Scripts JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script> <!-- Script geral -->
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script> <!-- Script da Sidebar -->
+    <script src="{{ url_for('static', filename='js/fornecedores.js') }}"></script> <!-- Script específico de Fornecedores -->
+
+</body>
+</html>

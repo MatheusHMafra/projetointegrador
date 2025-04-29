@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark"> <!-- Mantém data-theme aqui -->
+<head>
+    {% include '_head.html' %}
+    {% block title %}Produtos - GEP{% endblock %}
+    <!-- Nenhum head_extra necessário por enquanto -->
+</head>
+<body>
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner" style="display: flex;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p>Carregando...</p>
+    </div>
+
+    <div class="d-flex">
+        <!-- Inclui a Sidebar -->
+        {% include '_sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation -->
+            <nav class="navbar sticky-top">
+                <div class="container-fluid">
+                    <button class="btn sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <div class="search-bar">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="busca-produto" class="form-control" placeholder="Buscar produto por nome ou código...">
+                        </div>
+                    </div>
+
+                    <!-- Theme toggle button -->
+                    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session.nome_usuario if session.nome_usuario else 'Usuário' }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page Content -->
+            <div class="container-fluid mt-4">
+                <!-- Page Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="page-title"><i class="fas fa-boxes me-2"></i>Produtos</h2>
+                    {% if session.nivel_acesso in ['admin', 'gerente'] %}
+                    <a href="{{ url_for('produtos.adicionar_produto') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Adicionar Produto
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- Filters -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="filtro-categoria" class="form-label">Filtrar por Categoria</label>
+                        <select id="filtro-categoria" class="form-select">
+                            <option value="">Todas as Categorias</option>
+                            <!-- Opções de categoria carregadas via JS -->
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filtro-fornecedor" class="form-label">Filtrar por Fornecedor</label>
+                        <select id="filtro-fornecedor" class="form-select">
+                            <option value="">Todos os Fornecedores</option>
+                            <!-- Opções de fornecedor carregadas via JS -->
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="filtro-estoque-baixo">
+                            <label class="form-check-label" for="filtro-estoque-baixo">Mostrar apenas estoque baixo</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product List Table -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Lista de Produtos</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nome</th>
+                                        <th>Categoria</th>
+                                        <th>Fornecedor</th>
+                                        <th>Preço Compra</th>
+                                        <th>Preço Venda</th>
+                                        <th>Estoque</th>
+                                        <th>Est. Mínimo</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="produtos-tabela">
+                                    <tr>
+                                        <td colspan="9" class="text-center">Carregando produtos...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                        <span id="total-produtos">Total: 0 produtos</span>
+                        <nav id="paginacao-produtos" aria-label="Paginação de produtos">
+                            <!-- Paginação será inserida aqui via JS -->
+                        </nav>
+                    </div>
+                </div>
+            </div> <!-- Fim container-fluid -->
+
+            <!-- Footer -->
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-0">GEP &copy; 2025</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <p class="mb-0">v1.0.0</p>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div> <!-- Fim main-content -->
+    </div> <!-- Fim d-flex -->
+
+    <!-- Modais -->
+    <!-- Modal Adicionar Produto -->
+    <div class="modal fade" id="modalAdicionarProduto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Adicionar Produto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarProduto">
+                        <div class="mb-3">
+                            <label for="codigoProduto" class="form-label">Código</label>
+                            <input type="text" class="form-control" id="codigoProduto" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nomeProduto" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="nomeProduto" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoriaProduto" class="form-label">Categoria</label>
+                            <select id="categoriaProduto" class="form-select" required>
+                                <!-- Opções de categoria -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fornecedorProduto" class="form-label">Fornecedor</label>
+                            <select id="fornecedorProduto" class="form-select" required>
+                                <!-- Opções de fornecedor -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="precoCompra" class="form-label">Preço de Compra</label>
+                            <input type="number" class="form-control" id="precoCompra" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="precoVenda" class="form-label">Preço de Venda</label>
+                            <input type="number" class="form-control" id="precoVenda" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estoqueProduto" class="form-label">Estoque</label>
+                            <input type="number" class="form-control" id="estoqueProduto" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estoqueMinimo" class="form-label">Estoque Mínimo</label>
+                            <input type="number" class="form-control" id="estoqueMinimo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descricaoProduto" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="descricaoProduto" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Adicionar Produto</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Produto -->
+    <div class="modal fade" id="modalEditarProduto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Produto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarProduto">
+                        <input type="hidden" id="idProdutoEditar">
+                        <div class="mb-3">
+                            <label for="codigoProdutoEditar" class="form-label">Código</label>
+                            <input type="text" class="form-control" id="codigoProdutoEditar" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nomeProdutoEditar" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="nomeProdutoEditar" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoriaProdutoEditar" class="form-label">Categoria</label>
+                            <select id="categoriaProdutoEditar" class="form-select" required>
+                                <!-- Opções de categoria -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fornecedorProdutoEditar" class="form-label">Fornecedor</label>
+                            <select id="fornecedorProdutoEditar" class="form-select" required>
+                                <!-- Opções de fornecedor -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="precoCompraEditar" class="form-label">Preço de Compra</label>
+                            <input type="number" class="form-control" id="precoCompraEditar" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="precoVendaEditar" class="form-label">Preço de Venda</label>
+                            <input type="number" class="form-control" id="precoVendaEditar" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estoqueProdutoEditar" class="form-label">Estoque</label>
+                            <input type="number" class="form-control" id="estoqueProdutoEditar" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estoqueMinimoEditar" class="form-label">Estoque Mínimo</label>
+                            <input type="number" class="form-control" id="estoqueMinimoEditar" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descricaoProdutoEditar" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="descricaoProdutoEditar" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Exclusão -->
+    <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o produto <strong id="nomeProdutoExcluir"></strong>?</p>
+                    <p class="text-danger small">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification" class="notification-popup" style="display:none;"></div>
+
+    <!-- Scripts JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script> <!-- Script geral da aplicação -->
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script> <!-- Script da Sidebar -->
+    <script src="{{ url_for('static', filename='js/produtos.js') }}"></script> <!-- Script específico de Produtos -->
+
+</body>
+</html>

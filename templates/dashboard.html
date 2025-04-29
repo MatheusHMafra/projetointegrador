@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark"> <!-- Mantém data-theme aqui -->
+<head>
+    {% include '_head.html' %}
+    {% block title %}Dashboard - GEP{% endblock %}
+    {% block head_extra %}
+    <!-- Chart.js (Específico do Dashboard) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% endblock %}
+</head>
+<body>
+    <!-- Loading Spinner Inicial -->
+    <div id="loading-spinner-initial" class="loading-spinner" style="display: flex;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p>Carregando dashboard...</p>
+    </div>
+
+    <div class="d-flex">
+        <!-- Inclui a Sidebar -->
+        {% include '_sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation -->
+            <nav class="navbar sticky-top">
+                <div class="container-fluid">
+                    <button class="btn sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <div class="search-bar">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="busca-produto" class="form-control" placeholder="Buscar produto...">
+                        </div>
+                    </div>
+
+                    <!-- Theme toggle button -->
+                    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session.nome_usuario }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page Content -->
+            <div class="container-fluid py-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Dashboard Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+                    <div>
+                        <span class="date-display">{{ now.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card bg-primary">
+                            <div class="stats-card-content">
+                                <div class="stats-icon">
+                                    <i class="fas fa-boxes"></i>
+                                </div>
+                                <div class="stats-data">
+                                    <h3 id="total-produtos">--</h3>
+                                    <p>Total de Produtos</p>
+                                </div>
+                            </div>
+                            <div class="stats-footer">
+                                <!-- Corrigido link -->
+                                <a href="{{ url_for('produtos.produtos_page') }}">Ver detalhes <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card bg-success">
+                            <div class="stats-card-content">
+                                <div class="stats-icon">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                                <div class="stats-data">
+                                    <h3 id="total-categorias">--</h3>
+                                    <p>Categorias</p>
+                                </div>
+                            </div>
+                            <div class="stats-footer">
+                                <!-- Corrigido link -->
+                                <a href="{{ url_for('produtos.categorias') }}">Ver detalhes <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card bg-warning">
+                            <div class="stats-card-content">
+                                <div class="stats-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="stats-data">
+                                    <h3 id="estoque-baixo">--</h3>
+                                    <p>Estoque Baixo</p>
+                                </div>
+                            </div>
+                            <div class="stats-footer">
+                                <!-- Corrigido link para página de produtos (assumindo filtro ou seção) -->
+                                <a href="{{ url_for('produtos.produtos_page') }}">Ver detalhes <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card bg-info">
+                            <div class="stats-card-content">
+                                <div class="stats-icon">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                                <div class="stats-data">
+                                    <h3 id="valor-estoque">--</h3>
+                                    <p>Valor em Estoque</p>
+                                </div>
+                            </div>
+                            <div class="stats-footer">
+                                <!-- Link para seção de relatórios ou página -->
+                                <a href="#relatorios">Ver detalhes <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Produtos recentes e Gráfico -->
+                <div class="row">
+                    <!-- Gráfico de movimentação -->
+                    <div class="col-md-8 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-chart-line me-2"></i>Movimentação de Estoque</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="graficoMovimentacao" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Produtos com estoque baixo -->
+                    <div class="col-md-4 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5><i class="fas fa-exclamation-circle me-2 text-warning"></i>Estoque Baixo</h5>
+                                <!-- Corrigido link para página de produtos -->
+                                <a href="{{ url_for('produtos.produtos_page') }}" class="btn btn-sm btn-outline-warning">Ver Todos</a>
+                            </div>
+                            <div class="card-body p-0">
+                                <ul class="list-group list-group-flush" id="estoque-baixo-lista">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center text-center p-3">
+                                        <span class="text-muted">Carregando...</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relatórios de Vendas -->
+                <div class="row">
+                    <!-- Produtos mais vendidos -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-chart-line me-2 text-success"></i>Mais Vendidos</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Produto</th>
+                                                <th>Categoria</th>
+                                                <th>Vendas</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="mais-vendidos-tabela">
+                                            <tr class="text-center">
+                                                <td colspan="3">Carregando...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Produtos menos vendidos -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-chart-bar me-2 text-danger"></i>Menos Vendidos</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Produto</th>
+                                                <th>Categoria</th>
+                                                <th>Vendas</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="menos-vendidos-tabela">
+                                            <tr class="text-center">
+                                                <td colspan="3">Carregando...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ações Rápidas -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-bolt me-2"></i>Ações Rápidas</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <!-- Botão abre modal Adicionar Produto -->
+                                        <a href="#" class="action-card" data-bs-toggle="modal" data-bs-target="#modalAdicionarProduto">
+                                            <div class="action-icon bg-primary">
+                                                <i class="fas fa-plus"></i>
+                                            </div>
+                                            <div class="action-text">
+                                                <h6>Novo Produto</h6>
+                                                <p class="small text-muted">Adicionar produto ao estoque</p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <!-- Botão abre modal Entrada (precisa existir o modal #modalEntradaProduto) -->
+                                        <a href="#" class="action-card" data-bs-toggle="modal" data-bs-target="#modalEntradaProduto">
+                                            <div class="action-icon bg-success">
+                                                <i class="fas fa-cart-plus"></i>
+                                            </div>
+                                            <div class="action-text">
+                                                <h6>Entrada</h6>
+                                                <p class="small text-muted">Registrar entrada de produtos</p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <!-- Botão abre modal Saída (precisa existir o modal #modalSaidaProduto) -->
+                                        <a href="#" class="action-card" data-bs-toggle="modal" data-bs-target="#modalSaidaProduto">
+                                            <div class="action-icon bg-danger">
+                                                <i class="fas fa-shopping-cart"></i>
+                                            </div>
+                                            <div class="action-text">
+                                                <h6>Saída</h6>
+                                                <p class="small text-muted">Registrar saída de produtos</p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <!-- Botão abre modal Relatórios (precisa existir o modal #modalRelatorios) -->
+                                        <a href="#" class="action-card" data-bs-toggle="modal" data-bs-target="#modalRelatorios">
+                                            <div class="action-icon bg-info">
+                                                <i class="fas fa-file-alt"></i>
+                                            </div>
+                                            <div class="action-text">
+                                                <h6>Relatório</h6>
+                                                <p class="small text-muted">Gerar relatórios</p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <footer class="footer">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-0">GEP &copy; 2025</p>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <p class="mb-0">v1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            </div> <!-- Fim container-fluid -->
+        </div> <!-- Fim main-content -->
+    </div> <!-- Fim d-flex -->
+
+    <!-- Modais -->
+    <!-- Modal Adicionar Produto -->
+    <div class="modal fade" id="modalAdicionarProduto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Adicionar Produto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarProduto">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nomeProduto" class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="nomeProduto" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="categoriaProduto" class="form-label">Categoria</label>
+                                <select class="form-select" id="categoriaProduto" required>
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="precoProduto" class="form-label">Preço de Venda</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="precoProduto" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="precoCompraProduto" class="form-label">Preço de Compra</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="precoCompraProduto">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="estoqueProduto" class="form-label">Estoque Inicial</label>
+                                <input type="number" min="0" class="form-control" id="estoqueProduto" value="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="estoqueMinimoProduto" class="form-label">Estoque Mínimo</label>
+                                <input type="number" min="0" class="form-control" id="estoqueMinimoProduto" value="5">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descricaoProduto" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="descricaoProduto" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarProduto">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adicionar Modais Faltantes (Exemplo) -->
+    <!-- Modal Entrada Produto -->
+    <div class="modal fade" id="modalEntradaProduto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Entrada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Formulário de Entrada Aqui -->
+                    <p>Formulário para registrar entrada de produto...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success">Registrar Entrada</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Saída Produto -->
+    <div class="modal fade" id="modalSaidaProduto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Saída</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Formulário de Saída Aqui -->
+                     <p>Formulário para registrar saída de produto...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger">Registrar Saída</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Relatórios -->
+    <div class="modal fade" id="modalRelatorios" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gerar Relatórios</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Opções de Relatório Aqui -->
+                     <p>Opções para gerar diferentes relatórios...</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner para Ações -->
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p>Carregando dados...</p>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification" class="notification-popup" style="display:none;"></div>
+
+    <!-- Scripts JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script> <!-- Script geral da aplicação -->
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script> <!-- Script da Sidebar -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script> <!-- Script específico do Dashboard -->
+
+</body>
+</html>
