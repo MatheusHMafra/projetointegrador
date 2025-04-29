@@ -26,7 +26,8 @@
         <!-- Item Categorias -->
         <li class="{{ 'active' if request.endpoint == 'produtos.categorias' or request.endpoint == 'produtos.categorias' else '' }}">
              <!-- Corrigido link para categorias -->
-            <a href="{{ url_for('produtos.categorias') }}">
+            <a href="#">
+            <!--{{ url_for('produtos.categorias') }}">-->
                 <i class="fas fa-tags"></i>
                 <span>Categorias</span>
             </a>
@@ -34,7 +35,8 @@
         <!-- Item Movimentações -->
         <li class="{{ 'active' if request.endpoint.startswith('estoque.') else '' }}">
              <!-- Corrigido link para movimentações -->
-            <a href="{{ url_for('estoque.movimentacoes_page') }}">
+            <a href="#">
+            <!--{{ url_for('estoque.movimentacoes_page') }}">-->
                 <i class="fas fa-exchange-alt"></i>
                 <span>Movimentações</span>
             </a>
