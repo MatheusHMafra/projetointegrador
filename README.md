@@ -63,31 +63,3 @@ python app.py
 ```
 
 O sistema estará disponível em `http://localhost:5000`
-
-## 🏗️ Estrutura do Projeto
-
-```txt
-projetointegrador/
-├── app/                  # Diretório principal da aplicação Flask
-│   ├── __init__.py       # Inicialização da aplicação
-│   ├── models.py         # Modelos do banco de dados (SQLAlchemy/SQLite)
-│   ├── routes.py         # Definição das rotas/views
-│   ├── forms.py          # Formulários (WTForms)
-│   └── static/           # Arquivos estáticos (CSS, JS, Imagens)
-│       ├── css/
-│       ├── js/
-│       └── img/
-│   └── templates/        # Templates HTML (Jinja2)
-│       ├── base.html
-│       ├── auth/
-│       ├── dashboard/
-│       ├── products/
-│       └── ...
-├── migrations/           # Migrações do banco de dados (se usar Flask-Migrate)
-├── tests/                # Testes unitários/integração
-├── .venv/                # Ambiente virtual Python
-├── config.py             # Configurações da aplicação
-├── requirements.txt      # Dependências Python
-├── run.py                # Script para iniciar a aplicação (opcional)
-└── README.md             # Este arquivo
-```
