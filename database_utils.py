@@ -2,246 +2,244 @@
 Utilitários para operações de banco de dados
 Versão compatível com Python 3.13
 """
+
 import logging
 import datetime
-from flask import current_app
+from flask import current_app  # Import current_app for logging within app context
 from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 
-logger = logging.getLogger(__name__)
+# Configure logger for this module
+logger = logging.getLogger(__name__)  # Use __name__ for module-specific logger
+# If Flask app's logger is already configured, this will use that configuration.
+# Otherwise, you might need to add basicConfig if running standalone.
+# logging.basicConfig(level=logging.INFO) # Example basic config
+
+DATABASE_NAME = "estoque.db"  # Define database name as a constant
 
 
 def get_db():
-    """Obtém uma conexão com o banco de dados"""
-    conn = sqlite3.connect(database='estoque.db', check_same_thread=False)
+    """Obtém uma conexão com o banco de dados."""
+    # Using os.path.join for cross-platform compatibility if DB is in a specific subdir
+    # For now, assuming it's in the root or Flask instance path handles it.
+    conn = sqlite3.connect(database=DATABASE_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row  # Para acessar colunas por nome
+    # Enable foreign key constraint enforcement for each connection
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
-def init_db():
-    """Inicializa o banco de dados com o esquema definido"""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Criar tabelas
-    with current_app.open_resource('schema.sql') as f:
-        conn.executescript(f.read().decode('utf8'))
-
-    conn.commit()
-    logger.info("Banco de dados inicializado com sucesso")
-
-
-def criar_tabelas():
-    conn = None
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-
-        # Tabela Usuário
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usuario (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                email TEXT UNIQUE,
-                senha_hash TEXT,
-                nivel_acesso TEXT,
-                ativo BOOLEAN DEFAULT 1,
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ultima_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Tabela Categoria
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS categoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL UNIQUE,
-                descricao TEXT,
-                ativo BOOLEAN DEFAULT 1,
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ultima_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Tabela Fornecedores
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS fornecedores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL UNIQUE,
-                cnpj TEXT UNIQUE,
-                email TEXT,
-                telefone TEXT,
-                endereco TEXT,
-                contato TEXT,
-                observacoes TEXT,
-                ativo BOOLEAN DEFAULT 1,
-                data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ultima_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Tabela Produto (garantir que a chave estrangeira para fornecedor existe)
-        # Se a tabela produto já existe, pode ser necessário um ALTER TABLE ou recriá-la
-        # Aqui, assumimos que ela será criada *depois* ou já contém a coluna
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS produto (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE,
-                nome TEXT NOT NULL,
-                descricao TEXT,
-                preco REAL NOT NULL,
-                preco_compra REAL,
-                estoque INTEGER DEFAULT 0,
-                estoque_minimo INTEGER DEFAULT 0,
-                imagem_url TEXT,
-                categoria_id INTEGER,
-                fornecedor_id INTEGER, -- Adicionado/Confirmado
-                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ultima_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (categoria_id) REFERENCES categoria (id),
-                FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id) -- Chave estrangeira
-            )
-        """)
-
-        # Tabela Estoque_Movimentacao
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS estoque_movimentacao (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                produto_id INTEGER,
-                tipo TEXT CHECK(tipo IN ('entrada', 'saida')),
-                quantidade INTEGER,
-                usuario_id INTEGER,
-                observacao TEXT,
-                data_movimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (produto_id) REFERENCES produto (id),
-                FOREIGN KEY (usuario_id) REFERENCES usuario (id)
-            )
-        """)
-
-        # Tabela Venda
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS venda (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                codigo TEXT UNIQUE,
-                usuario_id INTEGER,
-                cliente_nome TEXT,
-                desconto REAL DEFAULT 0,
-                forma_pagamento TEXT,
-                observacao TEXT,
-                data_venda TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                valor_total REAL,
-                valor_final REAL,
-                FOREIGN KEY (usuario_id) REFERENCES usuario (id)
-            )
-        """)
-
-        # Tabela Venda_Item
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS venda_item (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                venda_id INTEGER,
-                produto_id INTEGER,
-                quantidade INTEGER,
-                preco_unitario REAL,
-                subtotal REAL,
-                FOREIGN KEY (venda_id) REFERENCES venda (id),
-                FOREIGN KEY (produto_id) REFERENCES produto (id)
-            )
-        """)
-
-        conn.commit()
-        print("Tabelas verificadas/criadas com sucesso.")
-    except sqlite3.Error as e:
-        print(f"Erro ao criar/verificar tabelas: {e}")
-        if conn:
-            conn.rollback()
-    finally:
-        if conn:
-            conn.close()
+# Removed init_db() and criar_tabelas() as schema initialization should be handled by models.py's init_db_sqlite
 
 
 def inicializar_dados_exemplo():
+    """Insere dados de exemplo no banco de dados, se não existirem."""
     conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # Verificar se já existem usuários para evitar duplicação
         cursor.execute("SELECT COUNT(*) FROM usuario")
         if cursor.fetchone()[0] == 0:
-            print("Inserindo dados de exemplo...")
+            logger.info("Inserindo dados de exemplo...")
             # Inserir usuários padrão
-            senha_hash1 = generate_password_hash("admin123")
+            senha_hash_admin = generate_password_hash("admin123")
             cursor.execute(
-                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso) VALUES (?, ?, ?, ?)",
-                ("Administrador", "admin@sistema.com", senha_hash1, "admin")
+                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
+                ("Administrador GEP", "admin@gep.com", senha_hash_admin, "admin", 1),
             )
-            senha_hash2 = generate_password_hash("vendedor123")
+            senha_hash_gerente = generate_password_hash("gerente123")
             cursor.execute(
-                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso) VALUES (?, ?, ?, ?)",
-                ("Vendedor", "vendedor@sistema.com", senha_hash2, "vendedor")
+                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
+                ("Gerente Loja", "gerente@gep.com", senha_hash_gerente, "gerente", 1),
+            )
+            senha_hash_operador = generate_password_hash("operador123")
+            cursor.execute(
+                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
+                (
+                    "Operador Caixa",
+                    "operador@gep.com",
+                    senha_hash_operador,
+                    "operador",
+                    1,
+                ),
             )
 
             # Inserir categorias padrão
             categorias = [
-                ("Eletrônicos", "Produtos eletrônicos em geral"),
-                ("Informática", "Equipamentos e peças para computadores"),
-                ("Celulares", "Smartphones e acessórios"),
-                ("Acessórios", "Acessórios em geral")
+                ("Papelaria", "Itens de papelaria como cadernos, canetas, etc."),
+                ("Escritório", "Material de escritório, organizadores."),
+                ("Informática", "Acessórios de informática, mouses, teclados."),
+                ("Artesanato", "Materiais para artesanato e pintura."),
+                ("Presentes", "Itens para presentes e embalagens."),
             ]
             cursor.executemany(
-                "INSERT INTO categoria (nome, descricao) VALUES (?, ?)",
-                categorias
+                "INSERT INTO categoria (nome, descricao) VALUES (?, ?)", categorias
             )
 
             # Inserir fornecedores padrão
             fornecedores = [
-                ("Distribuidora Alfa", "11.222.333/0001-44", "contato@alfa.com", "11 9999-8888", "Rua Principal, 10", "João Silva", "Entrega rápida", 1),
-                ("Componentes Beta", "44.555.666/0001-77", "vendas@beta.com", "21 8888-7777", "Avenida Central, 20", "Ana Costa", "Peças de qualidade", 1),
-                ("Importados Gama", "77.888.999/0001-00", "import@gama.com", "31 7777-6666", "Praça da Matriz, 30", "Carlos Lima", None, 0), # Inativo
-                ("Eletrônicos SA", "98.765.432/0001-21", "contato@eletronicos.com", "11 9888-7777", "Avenida Industrial, 200", "Maria Oliveira", "Bom prazo de entrega", 1),
-                ("InfoTech", "54.321.678/0001-55", "vendas@infotech.com", "48 9777-6666", "Travessa do Comércio, 300", "Carlos Pereira", "Preços competitivos", 1)
+                (
+                    "Distribuidora Escolar Ltda",
+                    "11.222.333/0001-44",
+                    "contato@escolar.com",
+                    "1133334444",
+                    "Rua das Canetas, 123, São Paulo, SP",
+                    "Carlos Dias",
+                    "Entrega rápida",
+                    1,
+                ),
+                (
+                    "Papel & Cia Atacadista",
+                    "44.555.666/0001-77",
+                    "vendas@papelcia.com",
+                    "2144445555",
+                    "Avenida dos Cadernos, 456, Rio de Janeiro, RJ",
+                    "Ana Lima",
+                    "Grande variedade",
+                    1,
+                ),
+                (
+                    "Importados Criativos S.A.",
+                    "77.888.999/0001-00",
+                    "import@criativos.com",
+                    "3155556666",
+                    "Praça das Artes, 789, Belo Horizonte, MG",
+                    "Sofia Mendes",
+                    "Produtos diferenciados",
+                    0,
+                ),  # Inativo
+                (
+                    "Office Supplies Brasil",
+                    "98.765.432/0001-21",
+                    "contato@officesupplies.br",
+                    "4166667777",
+                    "Alameda dos Clips, 101, Curitiba, PR",
+                    "Roberto Alves",
+                    "Bom atendimento",
+                    1,
+                ),
             ]
-            cursor.executemany("""
+            cursor.executemany(
+                """
                 INSERT INTO fornecedores (nome, cnpj, email, telefone, endereco, contato, observacoes, ativo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, fornecedores)
+            """,
+                fornecedores,
+            )
 
-            # Inserir produtos de exemplo (ajustar para incluir fornecedor_id)
-            # Exemplo: (codigo, nome, desc, preco, preco_compra, estoque, est_min, cat_id, forn_id)
+            # Obter IDs das categorias e fornecedores para associar aos produtos
+            cursor.execute("SELECT id FROM categoria WHERE nome = 'Papelaria'")
+            cat_papelaria_id = cursor.fetchone()["id"]
+            cursor.execute("SELECT id FROM categoria WHERE nome = 'Escritório'")
+            cat_escritorio_id = cursor.fetchone()["id"]
+            cursor.execute("SELECT id FROM categoria WHERE nome = 'Informática'")
+            cat_informatica_id = cursor.fetchone()["id"]
+
+            cursor.execute(
+                "SELECT id FROM fornecedores WHERE nome = 'Distribuidora Escolar Ltda'"
+            )
+            forn_escolar_id = cursor.fetchone()["id"]
+            cursor.execute(
+                "SELECT id FROM fornecedores WHERE nome = 'Papel & Cia Atacadista'"
+            )
+            forn_papelcia_id = cursor.fetchone()["id"]
+            cursor.execute(
+                "SELECT id FROM fornecedores WHERE nome = 'Office Supplies Brasil'"
+            )
+            forn_office_id = cursor.fetchone()["id"]
+
             produtos = [
-                ('LP001', 'Laptop Pro', 'Laptop de alta performance', 5500.00, 4800.00, 15, 5, 1, 1), # Cat: Eletrônicos, Forn: Alfa
-                ('SM002', 'Smartphone X', 'Smartphone com câmera avançada', 3200.00, 2800.00, 25, 10, 1, 2), # Cat: Eletrônicos, Forn: Beta
-                ('KB003', 'Teclado Mecânico', 'Teclado para gamers', 350.00, 280.00, 50, 15, 2, 1), # Cat: Acessórios, Forn: Alfa
-                ('MS004', 'Mouse Gamer', 'Mouse óptico RGB', 150.00, 110.00, 60, 20, 2, 4), # Cat: Acessórios, Forn: Eletrônicos SA
-                ('HD005', 'HD Externo 1TB', 'Disco rígido portátil USB 3.0', 250.00, 200.00, 30, 10, 3, 5), # Cat: Armazenamento, Forn: InfoTech
-                ('SSD006', 'SSD 500GB', 'SSD SATA III rápido', 400.00, 350.00, 40, 10, 3, 5), # Cat: Armazenamento, Forn: InfoTech
-                ('MN007', 'Monitor 24" LED', 'Monitor Full HD', 800.00, 700.00, 10, 3, 1, 4), # Cat: Eletrônicos, Forn: Eletrônicos SA
+                (
+                    "CAD001",
+                    "Caderno Universitário Capa Dura 96fls",
+                    "Caderno espiral com pauta azul.",
+                    cat_papelaria_id,
+                    15.90,
+                    9.50,
+                    150,
+                    20,
+                    forn_escolar_id,
+                    "static/uploads/produtos/caderno_default.png",
+                ),
+                (
+                    "CAN002",
+                    "Caneta Esferográfica Azul BIC",
+                    "Caneta esferográfica ponta média.",
+                    cat_papelaria_id,
+                    2.50,
+                    1.20,
+                    500,
+                    50,
+                    forn_papelcia_id,
+                    "static/uploads/produtos/caneta_default.png",
+                ),
+                (
+                    "LAP003",
+                    "Lápis Preto Nº2 Faber-Castell",
+                    "Caixa com 12 lápis grafite.",
+                    cat_papelaria_id,
+                    18.00,
+                    10.00,
+                    200,
+                    30,
+                    forn_escolar_id,
+                    None,
+                ),
+                (
+                    "ORG004",
+                    "Organizador de Mesa Acrílico",
+                    "Organizador com 3 compartimentos.",
+                    cat_escritorio_id,
+                    35.00,
+                    22.00,
+                    80,
+                    10,
+                    forn_office_id,
+                    "static/uploads/produtos/organizador_default.png",
+                ),
+                (
+                    "MOU005",
+                    "Mouse Óptico USB Preto",
+                    "Mouse com fio, design ergonômico.",
+                    cat_informatica_id,
+                    45.00,
+                    28.00,
+                    120,
+                    15,
+                    forn_office_id,
+                    None,
+                ),
             ]
-            cursor.executemany("""
-                INSERT INTO produto (codigo, nome, descricao, preco, preco_compra, estoque, estoque_minimo, categoria_id, fornecedor_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, produtos)
+            cursor.executemany(
+                """
+                INSERT INTO produto (codigo, nome, descricao, categoria_id, preco, preco_compra, estoque, estoque_minimo, fornecedor_id, imagem_url, data_criacao, ultima_atualizacao)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+                produtos,
+            )
 
             conn.commit()
-            print("Dados de exemplo inseridos.")
+            logger.info("Dados de exemplo inseridos com sucesso.")
         else:
-            print("Banco de dados já contém dados. Nenhuma inserção realizada.")
-
+            logger.info(
+                "Banco de dados já contém dados. Nenhuma inserção de exemplo realizada."
+            )
+        return True  # Indica sucesso ou que dados já existiam
     except sqlite3.Error as e:
-        print(f"Erro ao inicializar dados de exemplo: {e}")
+        logger.error(f"Erro ao inicializar dados de exemplo: {e}", exc_info=True)
         if conn:
             conn.rollback()
+        return False  # Indica falha
     finally:
         if conn:
             conn.close()
 
 
 def obter_estatisticas():
-    """
-    Retorna estatísticas gerais do sistema para o dashboard
-    """
+    """Retorna estatísticas gerais do sistema para o dashboard."""
+    conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -249,519 +247,566 @@ def obter_estatisticas():
         resultado = {}
 
         # Total de produtos
-        cursor.execute("SELECT COUNT(*) FROM produto")
-        resultado['total_produtos'] = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(id) FROM produto")
+        resultado["total_produtos"] = cursor.fetchone()[0]
 
         # Total de categorias
-        cursor.execute("SELECT COUNT(*) FROM categoria")
-        resultado['total_categorias'] = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(id) FROM categoria")
+        resultado["total_categorias"] = cursor.fetchone()[0]
 
-        # Total de fornecedores
-        cursor.execute("SELECT COUNT(*) FROM fornecedor")
-        resultado['total_fornecedores'] = cursor.fetchone()[0]
+        # Total de fornecedores ativos
+        cursor.execute("SELECT COUNT(id) FROM fornecedores WHERE ativo = 1")
+        resultado["total_fornecedores_ativos"] = cursor.fetchone()[0]
 
-        # Total em estoque (quantidade)
-        cursor.execute("SELECT SUM(estoque) FROM produto")
-        resultado['total_estoque'] = cursor.fetchone()[0] or 0
-
-        # Valor total em estoque
-        cursor.execute("SELECT SUM(estoque * preco_compra) FROM produto")
-        resultado['valor_estoque'] = cursor.fetchone()[0] or 0
+        # Valor total em estoque (baseado no preço de compra)
+        cursor.execute(
+            "SELECT SUM(estoque * preco_compra) FROM produto WHERE estoque > 0 AND preco_compra > 0"
+        )
+        resultado["valor_total_estoque"] = cursor.fetchone()[0] or 0.0
 
         # Produtos com estoque baixo
         cursor.execute(
-            "SELECT COUNT(*) FROM produto WHERE estoque <= estoque_minimo")
-        resultado['produtos_estoque_baixo'] = cursor.fetchone()[0]
-
-        # Movimentações de estoque nos últimos 30 dias
-        trinta_dias_atras = datetime.datetime.now() - datetime.timedelta(days=30)
-        cursor.execute(
-            "SELECT COUNT(*) FROM movimento_estoque WHERE data_movimento >= ?",
-            (trinta_dias_atras,)
+            "SELECT COUNT(id) FROM produto WHERE estoque <= estoque_minimo AND estoque > 0"
         )
-        resultado['movimentacoes_ultimos_30_dias'] = cursor.fetchone()[0]
+        resultado["produtos_estoque_baixo"] = cursor.fetchone()[0]
 
-        # Vendas nos últimos 30 dias
+        # Produtos sem estoque
+        cursor.execute("SELECT COUNT(id) FROM produto WHERE estoque = 0")
+        resultado["produtos_sem_estoque"] = cursor.fetchone()[0]
+
+        # Vendas nos últimos 30 dias (contagem e valor)
+        trinta_dias_atras = (
+            datetime.datetime.now() - datetime.timedelta(days=30)
+        ).strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute(
-            "SELECT COUNT(*), COALESCE(SUM(valor_final), 0) FROM venda WHERE data_venda >= ?",
-            (trinta_dias_atras,)
+            "SELECT COUNT(id), COALESCE(SUM(valor_final), 0) FROM venda WHERE data_venda >= ?",
+            (trinta_dias_atras,),
         )
-        venda_dados = cursor.fetchone()
-        resultado['vendas_ultimos_30_dias'] = venda_dados[0]
-        resultado['valor_vendas_ultimos_30_dias'] = venda_dados[1] or 0
+        vendas_dados = cursor.fetchone()
+        resultado["vendas_ultimos_30_dias_contagem"] = vendas_dados[0]
+        resultado["vendas_ultimos_30_dias_valor"] = vendas_dados[1] or 0.0
 
-        # Produtos mais vendidos
+        # Movimentações recentes (últimas 5)
         cursor.execute(
             """
-            SELECT p.id, p.nome, SUM(iv.quantidade) as total_vendido
-            FROM produto p
-            JOIN item_venda iv ON p.id = iv.produto_id
-            JOIN venda v ON iv.venda_id = v.id
-            WHERE v.data_venda >= ?
-            GROUP BY p.id
-            ORDER BY total_vendido DESC
+            SELECT m.id, p.nome as produto_nome, m.tipo, m.quantidade, m.data_movimento, u.nome as usuario_nome
+            FROM estoque_movimentacao m
+            JOIN produto p ON m.produto_id = p.id
+            LEFT JOIN usuario u ON m.usuario_id = u.id
+            ORDER BY m.data_movimento DESC
             LIMIT 5
-            """,
-            (trinta_dias_atras,)
+        """
         )
-        resultado['produtos_mais_vendidos'] = []
-        for row in cursor.fetchall():
-            resultado['produtos_mais_vendidos'].append({
-                'id': row[0],
-                'nome': row[1],
-                'total_vendido': row[2]
-            })
-
-        # Movimentações recentes
-        cursor.execute(
-            """
-            SELECT me.id, p.nome as produto_nome, me.tipo, me.quantidade, me.data_movimento
-            FROM movimento_estoque me
-            JOIN produto p ON me.produto_id = p.id
-            ORDER BY me.data_movimento DESC
-            LIMIT 10
-            """
-        )
-        resultado['movimentacoes_recentes'] = []
-        for row in cursor.fetchall():
-            movimento = {}
-            for idx, col in enumerate(cursor.description):
-                if col[0] == 'data_movimento' and row[idx] is not None:
-                    movimento[col[0]] = row[idx].strftime(
-                        '%Y-%m-%d %H:%M:%S') if isinstance(row[idx], datetime.datetime) else row[idx]
-                else:
-                    movimento[col[0]] = row[idx]
-            resultado['movimentacoes_recentes'].append(movimento)
+        mov_recentes_raw = cursor.fetchall()
+        resultado["movimentacoes_recentes"] = []
+        for row in mov_recentes_raw:
+            mov_dict = dict(row)
+            # Format date for display
+            try:
+                dt_obj = datetime.datetime.fromisoformat(mov_dict["data_movimento"])
+                mov_dict["data_movimento_fmt"] = dt_obj.strftime("%d/%m/%y %H:%M")
+            except:  # Catch any parsing error
+                mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]  # fallback
+            resultado["movimentacoes_recentes"].append(mov_dict)
 
         return resultado
 
-    except Exception as e:
-        logger.error(f"Erro ao obter estatísticas: {str(e)}")
+    except sqlite3.Error as e:
+        logger.error(f"Erro ao obter estatísticas: {e}", exc_info=True)
+        # Return a default structure in case of error to prevent frontend issues
         return {
-            'error': str(e),
-            'total_produtos': 0,
-            'total_categorias': 0,
-            'total_fornecedores': 0,
-            'total_estoque': 0,
-            'valor_estoque': 0,
-            'produtos_estoque_baixo': 0,
-            'movimentacoes_ultimos_30_dias': 0,
-            'vendas_ultimos_30_dias': 0,
-            'valor_vendas_ultimos_30_dias': 0,
-            'produtos_mais_vendidos': [],
-            'movimentacoes_recentes': []
+            "total_produtos": 0,
+            "total_categorias": 0,
+            "total_fornecedores_ativos": 0,
+            "valor_total_estoque": 0.0,
+            "produtos_estoque_baixo": 0,
+            "produtos_sem_estoque": 0,
+            "vendas_ultimos_30_dias_contagem": 0,
+            "vendas_ultimos_30_dias_valor": 0.0,
+            "movimentacoes_recentes": [],
+            "error": str(e),
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def registrar_movimento(produto_id, tipo, quantidade, usuario_id=None, observacao=None):
+def registrar_movimento(
+    produto_id, tipo, quantidade, usuario_id=None, observacao=None, venda_id=None
+):
     """
-    Registra um movimento de estoque e atualiza o estoque do produto
+    Registra um movimento de estoque e atualiza o estoque do produto.
+    Agora inclui transação e lida com 'ajuste' e 'venda'.
 
     Args:
-        produto_id (int): ID do produto
-        tipo (str): 'entrada' ou 'saida'
-        quantidade (int): Quantidade a ser movimentada
-        usuario_id (int, opcional): ID do usuário que está fazendo a movimentação
-        observacao (str, opcional): Observação sobre a movimentação
+        produto_id (int): ID do produto.
+        tipo (str): 'entrada', 'saida', 'ajuste', 'venda'.
+        quantidade (int): Quantidade a ser movimentada. Para 'ajuste', este é o NOVO valor do estoque.
+        usuario_id (int, opcional): ID do usuário que está fazendo a movimentação.
+        observacao (str, opcional): Observação sobre a movimentação.
+        venda_id (int, opcional): ID da venda, se o movimento for originado de uma venda.
 
     Returns:
-        dict: Informações sobre o movimento realizado
+        dict: Informações sobre o movimento realizado.
+
+    Raises:
+        ValueError: Se os inputs forem inválidos ou estoque insuficiente.
+        sqlite3.Error: Em caso de erro no banco de dados.
     """
+    if not all([produto_id, tipo]):
+        raise ValueError("Produto ID e Tipo são obrigatórios para registrar movimento.")
+
+    # Para 'ajuste', quantidade é o novo estoque. Para outros, é a delta.
+    if tipo not in ["entrada", "saida", "ajuste", "venda"]:
+        raise ValueError(
+            "Tipo de movimento inválido. Use 'entrada', 'saida', 'ajuste' ou 'venda'."
+        )
+
+    if tipo != "ajuste" and (not isinstance(quantidade, int) or quantidade <= 0):
+        raise ValueError(
+            "Quantidade (delta) deve ser um inteiro positivo para entradas, saídas ou vendas."
+        )
+
+    if tipo == "ajuste" and (not isinstance(quantidade, int) or quantidade < 0):
+        raise ValueError(
+            "Quantidade (novo estoque) para ajuste deve ser um inteiro não negativo."
+        )
+
+    conn = None
     try:
-        if tipo not in ['entrada', 'saida']:
-            raise ValueError(
-                "Tipo de movimento inválido. Use 'entrada' ou 'saida'")
-
-        if quantidade <= 0:
-            raise ValueError("Quantidade deve ser maior que zero")
-
         conn = get_db()
         cursor = conn.cursor()
+        conn.execute("BEGIN TRANSACTION")  # Iniciar transação
 
-        # Buscar produto e estoque atual
         cursor.execute(
-            "SELECT id, nome, estoque FROM produto WHERE id = ?", (produto_id,))
+            "SELECT id, nome, estoque FROM produto WHERE id = ?", (produto_id,)
+        )
         produto = cursor.fetchone()
 
         if not produto:
-            raise ValueError(f"Produto com ID {produto_id} não encontrado")
+            raise ValueError(f"Produto com ID {produto_id} não encontrado.")
 
-        estoque_anterior = produto[2]
+        estoque_anterior = produto["estoque"]
+        quantidade_movimentada = 0  # Delta real que foi movimentado
 
-        # Calcular novo estoque
-        if tipo == 'entrada':
+        if tipo == "entrada":
             estoque_novo = estoque_anterior + quantidade
-        else:  # saída
+            quantidade_movimentada = quantidade
+        elif tipo == "saida" or tipo == "venda":
             if estoque_anterior < quantidade:
                 raise ValueError(
-                    f"Estoque insuficiente. Disponível: {estoque_anterior}, Solicitado: {quantidade}")
+                    f"Estoque insuficiente para '{produto['nome']}'. Disponível: {estoque_anterior}, Solicitado: {quantidade}."
+                )
             estoque_novo = estoque_anterior - quantidade
+            quantidade_movimentada = -quantidade  # Negativo para saida/venda
+        elif tipo == "ajuste":
+            estoque_novo = (
+                quantidade  # 'quantidade' aqui é o novo valor absoluto do estoque
+            )
+            quantidade_movimentada = estoque_novo - estoque_anterior
+        else:
+            # Should not happen due to earlier check, but as a safeguard:
+            raise ValueError(f"Tipo de movimento desconhecido: {tipo}")
 
         # Atualizar estoque do produto
         cursor.execute(
-            "UPDATE produto SET estoque = ? WHERE id = ?",
-            (estoque_novo, produto_id)
+            "UPDATE produto SET estoque = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
+            (estoque_novo, produto_id),
         )
 
         # Registrar movimento
-        cursor.execute(
-            """
-            INSERT INTO movimento_estoque
-            (produto_id, usuario_id, tipo, quantidade, estoque_anterior, estoque_atual, observacao)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (produto_id, usuario_id, tipo, quantidade,
-             estoque_anterior, estoque_novo, observacao)
+        # Nota: para 'ajuste', a 'quantidade' na tabela estoque_movimentacao registrará a DIFERENÇA.
+        # Se o tipo for 'ajuste', a `quantidade_movimentada` calculada acima já é a diferença.
+        # Se o tipo for 'entrada', 'saida', 'venda', `quantidade` é a delta.
+
+        # A coluna 'quantidade' em estoque_movimentacao deve sempre refletir a variação.
+        # Se o tipo é 'ajuste', a 'quantidade' que foi passada para a função era o *novo valor total*.
+        # A variação é `estoque_novo - estoque_anterior`.
+
+        # Se tipo for 'entrada', 'saida', 'venda', a 'quantidade' passada é a variação.
+        # Para consistência na tabela estoque_movimentacao, a coluna 'quantidade' deve ser a variação.
+
+        # Para 'entrada', 'saida', 'venda', a `quantidade` passada é a variação.
+        # Para 'ajuste', a `quantidade_movimentada` é a variação.
+
+        db_mov_quantidade = (
+            quantidade_movimentada
+            if tipo == "ajuste"
+            else (quantidade if tipo == "entrada" else -quantidade)
         )
 
+        cursor.execute(
+            """
+            INSERT INTO estoque_movimentacao
+            (produto_id, usuario_id, tipo, quantidade, estoque_anterior, estoque_atual, observacao, venda_id, data_movimento)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (
+                produto_id,
+                usuario_id,
+                tipo,
+                db_mov_quantidade,
+                estoque_anterior,
+                estoque_novo,
+                observacao,
+                venda_id,
+            ),
+        )
         movimento_id = cursor.lastrowid
-
-        # Confirmar transação
-        conn.commit()
+        conn.commit()  # Finalizar transação
 
         logger.info(
-            f"Movimento de estoque registrado: {tipo} de {quantidade} unidades do produto {produto[1]}")
+            f"Movimento de estoque ID {movimento_id} registrado: {tipo}, Produto ID {produto_id} ({produto['nome']}), "
+            f"Qtd: {db_mov_quantidade}, Estoque: {estoque_anterior} -> {estoque_novo}, Usuário ID: {usuario_id}"
+        )
 
         return {
-            'id': movimento_id,
-            'produto_id': produto_id,
-            'produto_nome': produto[1],
-            'tipo': tipo,
-            'quantidade': quantidade,
-            'estoque_anterior': estoque_anterior,
-            'estoque_atual': estoque_novo,
-            'usuario_id': usuario_id,
-            'observacao': observacao,
-            'data_movimento': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            "id": movimento_id,
+            "produto_id": produto_id,
+            "produto_nome": produto["nome"],
+            "tipo": tipo,
+            "quantidade_movimentada": db_mov_quantidade,  # A variação efetiva
+            "estoque_anterior": estoque_anterior,
+            "estoque_atual": estoque_novo,
+            "usuario_id": usuario_id,
+            "observacao": observacao,
+            "data_movimento": datetime.datetime.now().isoformat(),  # Padronizar formato de data
         }
 
-    except Exception as e:
-        conn.rollback() if 'conn' in locals() else None
-        logger.error(f"Erro ao registrar movimento de estoque: {str(e)}")
-        raise
+    except (ValueError, sqlite3.Error) as e:
+        if conn:
+            conn.rollback()
+        logger.error(
+            f"Erro ao registrar movimento de estoque para produto ID {produto_id}: {e}",
+            exc_info=True,
+        )
+        raise  # Re-raise a exceção para ser tratada pela rota que chamou
+    finally:
+        if conn:
+            conn.close()
 
 
-def buscar_produtos(query=None, categoria=None, fornecedor=None, estoque_baixo=False, page=1, per_page=10):
+def buscar_produtos(
+    termo=None,
+    categoria_id=None,
+    fornecedor_id=None,
+    estoque_baixo=False,
+    page=1,
+    per_page=10,
+    ordenar_por="p.nome",
+    direcao="ASC",
+):
     """
-    Busca produtos com base em diferentes filtros
-
-    Args:
-        query (str, opcional): Busca por nome ou descrição
-        categoria (int, opcional): ID da categoria
-        fornecedor (int, opcional): ID do fornecedor
-        estoque_baixo (bool): Se True, filtra produtos com estoque <= estoque_minimo
-        page (int): Número da página
-        per_page (int): Itens por página
-
-    Returns:
-        dict: Contém os produtos encontrados e informações de paginação
+    Busca produtos com base em diferentes filtros, com ordenação e paginação.
     """
+    conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # Construir a query base
-        base_query = """
-        SELECT 
-            p.id, 
-            p.nome, 
-            p.descricao, 
-            p.preco, 
-            p.preco_compra,
-            p.estoque, 
-            p.estoque_minimo,
-            p.categoria_id, 
-            c.nome as categoria_nome,
-            p.fornecedor_id,
-            f.nome as fornecedor_nome
-        FROM 
-            produto p
-        JOIN 
-            categoria c ON p.categoria_id = c.id
-        JOIN 
-            fornecedor f ON p.fornecedor_id = f.id
-        WHERE 
-            1=1
+        # Base da query
+        query_select = """
+            SELECT
+                p.id, p.codigo, p.nome, p.descricao, p.preco, p.preco_compra,
+                p.estoque, p.estoque_minimo, p.imagem_url,
+                p.categoria_id, c.nome as categoria_nome,
+                p.fornecedor_id, f.nome as fornecedor_nome
+            FROM produto p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
+        query_count = "SELECT COUNT(p.id) FROM produto p"  # Para contagem total
 
+        where_clauses = []
         params = []
 
-        # Adicionar filtros
-        if query:
-            base_query += " AND (p.nome LIKE ? OR p.descricao LIKE ?)"
-            params.extend([f"%{query}%", f"%{query}%"])
-
-        if categoria:
-            base_query += " AND p.categoria_id = ?"
-            params.append(categoria)
-
-        if fornecedor:
-            base_query += " AND p.fornecedor_id = ?"
-            params.append(fornecedor)
-
+        if termo:
+            # Busca por código, nome ou descrição
+            where_clauses.append(
+                "(p.codigo LIKE ? OR p.nome LIKE ? OR p.descricao LIKE ?)"
+            )
+            term_like = f"%{termo}%"
+            params.extend([term_like, term_like, term_like])
+        if categoria_id:
+            where_clauses.append("p.categoria_id = ?")
+            params.append(categoria_id)
+        if fornecedor_id:
+            where_clauses.append("p.fornecedor_id = ?")
+            params.append(fornecedor_id)
         if estoque_baixo:
-            base_query += " AND p.estoque <= p.estoque_minimo"
+            where_clauses.append("p.estoque <= p.estoque_minimo")
 
-        # Query para contar total de registros
-        count_query = "SELECT COUNT(*) FROM (" + base_query + ")"
-        cursor.execute(count_query, params)
+        # Montar cláusula WHERE
+        where_sql = ""
+        if where_clauses:
+            where_sql = " WHERE " + " AND ".join(where_clauses)
+
+        # Executar query de contagem
+        cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
-        # Adicionar ordenação e paginação
-        base_query += " ORDER BY p.nome"
-        base_query += " LIMIT ? OFFSET ?"
-        offset = (page - 1) * per_page
-        params.extend([per_page, offset])
+        # Validar e montar cláusula ORDER BY
+        allowed_sort_columns = [
+            "p.nome",
+            "p.preco",
+            "p.estoque",
+            "p.data_criacao",
+        ]  # Adicionar mais se necessário
+        if ordenar_por not in allowed_sort_columns:
+            ordenar_por = "p.nome"  # Default seguro
 
-        # Executar query final
-        cursor.execute(base_query, params)
+        direcao_segura = (
+            "DESC" if direcao.upper() == "DESC" else "ASC"
+        )  # Default seguro
 
-        # Processar resultados
-        produtos = []
-        for row in cursor.fetchall():
-            produto = {}
-            for idx, col in enumerate(cursor.description):
-                produto[col[0]] = row[idx]
+        order_by_sql = f" ORDER BY {ordenar_por} {direcao_segura}"
 
-            # Adicionar status de estoque
-            produto['estoque_status'] = 'baixo' if produto['estoque'] <= produto['estoque_minimo'] else 'normal'
-            produtos.append(produto)
+        # Montar query de paginação
+        limit_offset_sql = " LIMIT ? OFFSET ?"
+        pagination_params = [per_page, (page - 1) * per_page]
 
-        # Calcular páginas
-        total_pages = (total_items + per_page -
-                       1) // per_page  # Arredonda para cima
+        # Executar query principal
+        final_query = query_select + where_sql + order_by_sql + limit_offset_sql
+        cursor.execute(final_query, params + pagination_params)
+        produtos_rows = cursor.fetchall()
+
+        produtos_list = [dict(row) for row in produtos_rows]
 
         return {
-            'produtos': produtos,
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total_items': total_items,
-                'total_pages': total_pages
-            }
+            "produtos": produtos_list,
+            "total": total_items,
+            "pages": total_pages,
+            "page": page,
+            "per_page": per_page,
         }
 
-    except Exception as e:
-        logger.error(f"Erro ao buscar produtos: {str(e)}")
+    except sqlite3.Error as e:
+        logger.error(f"Erro ao buscar produtos: {e}", exc_info=True)
         return {
-            'error': str(e),
-            'produtos': [],
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total_items': 0,
-                'total_pages': 0
-            }
+            "produtos": [],
+            "total": 0,
+            "pages": 0,
+            "page": page,
+            "per_page": per_page,
+            "error": str(e),
         }
+    finally:
+        if conn:
+            conn.close()
 
 
-def obter_dados_movimentacao(produto_id=None, tipo=None, data_inicio=None, data_fim=None, usuario_id=None, page=1, per_page=20):
+def obter_dados_movimentacao_grafico(dias=30):
     """
-    Obtém dados de movimentação de estoque com diferentes filtros
-
-    Args:
-        produto_id (int, opcional): Filtrar por ID do produto
-        tipo (str, opcional): Tipo de movimentação ('entrada' ou 'saida')
-        data_inicio (str, opcional): Data de início no formato 'YYYY-MM-DD'
-        data_fim (str, opcional): Data de fim no formato 'YYYY-MM-DD'
-        usuario_id (int, opcional): Filtrar por ID do usuário
-        page (int): Número da página (padrão: 1)
-        per_page (int): Itens por página (padrão: 20)
-
-    Returns:
-        dict: Contém os movimentos encontrados e informações de paginação
+    Obtém dados agregados de movimentação de estoque para gráficos.
+    Retorna entradas e saídas diárias nos últimos 'dias'.
     """
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Construir a consulta
-    sql_query = """
-        SELECT m.*, p.nome as produto_nome, p.codigo as produto_codigo, u.nome as usuario_nome
-        FROM movimento_estoque m
-        LEFT JOIN produto p ON m.produto_id = p.id
-        LEFT JOIN usuario u ON m.usuario_id = u.id
-        WHERE 1=1
-    """
-    params = []
-
-    # Adicionar filtros
-    if produto_id:
-        sql_query += " AND m.produto_id = ?"
-        params.append(produto_id)
-
-    if tipo:
-        sql_query += " AND m.tipo = ?"
-        params.append(tipo.lower())
-
-    if data_inicio:
-        sql_query += " AND m.data_movimento >= ?"
-        # Converter string para datetime se necessário
-        if isinstance(data_inicio, str):
-            try:
-                data_inicio = datetime.datetime.strptime(
-                    data_inicio, '%Y-%m-%d')
-            except ValueError:
-                pass
-        params.append(data_inicio)
-
-    if data_fim:
-        sql_query += " AND m.data_movimento <= ?"
-        # Converter string para datetime se necessário
-        if isinstance(data_fim, str):
-            try:
-                data_fim = datetime.datetime.strptime(data_fim, '%Y-%m-%d')
-                # Ajustar para final do dia
-                data_fim = data_fim.replace(hour=23, minute=59, second=59)
-            except ValueError:
-                pass
-        params.append(data_fim)
-
-    if usuario_id:
-        sql_query += " AND m.usuario_id = ?"
-        params.append(usuario_id)
-
-    # Contar total para paginação
-    count_query = """
-        SELECT COUNT(*) FROM movimento_estoque m
-        WHERE 1=1
-    """
-    count_params = params.copy()
-
-    # Adicionar mesmos filtros na consulta de contagem
-    if produto_id:
-        count_query += " AND m.produto_id = ?"
-    if tipo:
-        count_query += " AND m.tipo = ?"
-    if data_inicio:
-        count_query += " AND m.data_movimento >= ?"
-    if data_fim:
-        count_query += " AND m.data_movimento <= ?"
-    if usuario_id:
-        count_query += " AND m.usuario_id = ?"
-
-    # Adicionar ordenação e paginação
-    sql_query += " ORDER BY m.data_movimento DESC LIMIT ? OFFSET ?"
-    params.append(per_page)
-    params.append((page - 1) * per_page)
-
-    # Executar as consultas
-    cursor.execute(count_query, count_params)
-    total = cursor.fetchone()[0]
-
-    cursor.execute(sql_query, params)
-    movimentos = cursor.fetchall()
-
-    # Formatar os resultados
-    resultado = []
-    for m in movimentos:
-        movimento_dict = {}
-        for idx, col in enumerate(cursor.description):
-            movimento_dict[col[0]] = m[idx]
-        resultado.append(movimento_dict)
-
-    # Formatar a resposta
-    return {
-        "movimentos": resultado,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "pages": (total + per_page - 1) // per_page  # Arredondar para cima
-    }
-
-
-def adicionar_venda(cliente_nome, itens, usuario_id, desconto=0, forma_pagamento=None, observacao=None):
-    """
-    Registra uma nova venda com múltiplos itens
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-
+    conn = None
     try:
-        # Criar código único para a venda
-        import uuid
-        codigo = f"V{uuid.uuid4().hex[:8].upper()}"
+        conn = get_db()
+        cursor = conn.cursor()
 
-        # Inserir a venda
+        data_limite = (
+            datetime.date.today() - datetime.timedelta(days=dias - 1)
+        ).strftime("%Y-%m-%d")
+
+        # Query para agrupar por dia e tipo
+        # Usamos strftime('%Y-%m-%d', data_movimento) para agrupar por dia
+        # Somamos 'quantidade' para entradas e subtraímos para saídas/vendas
+        # Ajustes são mais complexos para um gráfico simples de entrada/saída,
+        # então focaremos em entradas e saídas/vendas diretas.
+        query = """
+            SELECT
+                strftime('%Y-%m-%d', data_movimento) as dia,
+                SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE 0 END) as total_entradas,
+                SUM(CASE WHEN tipo IN ('saida', 'venda') THEN quantidade ELSE 0 END) as total_saidas
+            FROM estoque_movimentacao
+            WHERE data_movimento >= ?
+            GROUP BY dia
+            ORDER BY dia ASC
+        """
+        cursor.execute(query, (data_limite,))
+        rows = cursor.fetchall()
+
+        # Preparar dados para o gráfico
+        labels = []
+        entradas = []
+        saidas = []
+
+        # Criar um dicionário com todos os dias no período para garantir que todos apareçam
+        # mesmo que não tenham movimentação.
+        date_map = {}
+        for i in range(dias):
+            day = datetime.date.today() - datetime.timedelta(days=i)
+            date_map[day.strftime("%Y-%m-%d")] = {"entradas": 0, "saidas": 0}
+
+        for row in rows:
+            dia_str = row["dia"]
+            if dia_str in date_map:  # Adiciona apenas se estiver no range esperado
+                date_map[dia_str]["entradas"] = (
+                    row["total_entradas"] if row["total_entradas"] else 0
+                )
+                # Saídas são armazenadas como negativas na tabela, então pegamos o valor absoluto ou somamos se já for positivo
+                date_map[dia_str]["saidas"] = (
+                    abs(row["total_saidas"]) if row["total_saidas"] else 0
+                )
+
+        # Ordenar pela data para o gráfico
+        sorted_dates = sorted(date_map.keys())
+
+        for dia_str in sorted_dates:
+            # Formatar data para DD/MM para o label
+            try:
+                dt_obj = datetime.datetime.strptime(dia_str, "%Y-%m-%d")
+                labels.append(dt_obj.strftime("%d/%m"))
+            except ValueError:
+                labels.append(dia_str)  # Fallback
+
+            entradas.append(date_map[dia_str]["entradas"])
+            saidas.append(date_map[dia_str]["saidas"])
+
+        return {"labels": labels, "entradas": entradas, "saidas": saidas}
+
+    except sqlite3.Error as e:
+        logger.error(
+            f"Erro ao obter dados para gráfico de movimentação: {e}", exc_info=True
+        )
+        return {"labels": [], "entradas": [], "saidas": [], "error": str(e)}
+    finally:
+        if conn:
+            conn.close()
+
+
+def adicionar_venda(
+    cliente_nome, itens, usuario_id, desconto=0.0, forma_pagamento=None, observacao=None
+):
+    """
+    Registra uma nova venda com múltiplos itens, incluindo transação.
+    """
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        conn.execute("BEGIN TRANSACTION")
+
+        codigo_venda = f"V{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}{os.urandom(2).hex().upper()}"
+        data_venda_iso = datetime.datetime.now().isoformat()
+
+        valor_total_bruto = 0.0
+
+        # Primeiro, calcular o valor total bruto e validar itens
+        for item_data in itens:
+            if not all(
+                k in item_data for k in ("produto_id", "quantidade", "preco_unitario")
+            ):
+                raise ValueError(
+                    "Dados do item incompletos (produto_id, quantidade, preco_unitario)."
+                )
+            if (
+                not isinstance(item_data["quantidade"], (int, float))
+                or item_data["quantidade"] <= 0
+            ):
+                raise ValueError(
+                    f"Quantidade inválida para produto ID {item_data['produto_id']}."
+                )
+            if (
+                not isinstance(item_data["preco_unitario"], (int, float))
+                or item_data["preco_unitario"] < 0
+            ):
+                raise ValueError(
+                    f"Preço unitário inválido para produto ID {item_data['produto_id']}."
+                )
+
+            valor_total_bruto += item_data["quantidade"] * item_data["preco_unitario"]
+
+        if (
+            not isinstance(desconto, (int, float))
+            or desconto < 0
+            or desconto > valor_total_bruto
+        ):
+            raise ValueError("Valor de desconto inválido.")
+
+        valor_final_venda = valor_total_bruto - desconto
+
         cursor.execute(
             """
-            INSERT INTO venda 
-            (codigo, usuario_id, cliente_nome, desconto, forma_pagamento, observacao, data_venda)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (codigo, usuario_id, cliente_nome, desconto,
-             forma_pagamento, observacao, datetime.datetime.now())
+            INSERT INTO venda (codigo, usuario_id, cliente_nome, valor_total, desconto, valor_final, forma_pagamento, observacao, data_venda)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                codigo_venda,
+                usuario_id,
+                cliente_nome,
+                valor_total_bruto,
+                desconto,
+                valor_final_venda,
+                forma_pagamento,
+                observacao,
+                data_venda_iso,
+            ),
         )
-
-        # Obter o ID da venda inserida
         venda_id = cursor.lastrowid
 
-        valor_total = 0
+        itens_processados = []
+        for item_data in itens:
+            produto_id = item_data["produto_id"]
+            quantidade = item_data["quantidade"]
+            preco_unitario = item_data["preco_unitario"]
+            subtotal = quantidade * preco_unitario
 
-        # Processar cada item da venda
-        for item in itens:
-            produto_id = item.get('produto_id')
-            quantidade = item.get('quantidade', 1)
+            # Registrar movimento de estoque (saída por venda)
+            # A função registrar_movimento já lida com a verificação de estoque
+            mov_info = registrar_movimento(
+                produto_id=produto_id,
+                tipo="venda",
+                quantidade=quantidade,
+                usuario_id=usuario_id,
+                observacao=f"Venda Cód: {codigo_venda}",
+                venda_id=venda_id,  # Passa o venda_id para o movimento
+            )  # registrar_movimento já faz commit interno se bem sucedida, ou rollback.
+            # Para aninhar transações, o ideal é que registrar_movimento receba a conexão.
+            # Por simplicidade aqui, assumimos que ela funciona atomicamente.
+            # Se registrar_movimento falhar, a transação externa aqui fará rollback.
 
-            # Obter informações do produto
-            cursor.execute(
-                "SELECT preco, estoque FROM produto WHERE id = ?", (produto_id,))
-            produto = cursor.fetchone()
-
-            if not produto:
-                conn.rollback()
-                raise ValueError(f"Produto com ID {produto_id} não encontrado")
-
-            # Se não especificado, usa o preço do produto
-            preco = item.get('preco_unitario', produto[0])
-            subtotal = preco * quantidade
-
-            # Verificar estoque
-            estoque = produto[1]
-            if quantidade > estoque:
-                conn.rollback()
-                raise ValueError(
-                    f"Estoque insuficiente para o produto ID {produto_id}")
-
-            # Registrar o item da venda
             cursor.execute(
                 """
-                INSERT INTO item_venda
-                (venda_id, produto_id, quantidade, preco_unitario, subtotal)
+                INSERT INTO item_venda (venda_id, produto_id, quantidade, preco_unitario, subtotal)
                 VALUES (?, ?, ?, ?, ?)
-                """,
-                (venda_id, produto_id, quantidade, preco, subtotal)
+            """,
+                (venda_id, produto_id, quantidade, preco_unitario, subtotal),
             )
 
-            # Atualizar o total da venda
-            valor_total += subtotal
-
-            # Registrar a saída no estoque
-            registrar_movimento(produto_id, 'venda', quantidade,
-                                usuario_id, f"Venda #{codigo}")
-
-        # Calcular valor final considerando o desconto
-        valor_final = valor_total - desconto
-
-        # Atualizar o valor total da venda
-        cursor.execute(
-            "UPDATE venda SET valor_total = ?, valor_final = ? WHERE id = ?",
-            (valor_total, valor_final, venda_id)
-        )
+            itens_processados.append(
+                {
+                    "item_venda_id": cursor.lastrowid,
+                    "produto_id": produto_id,
+                    "quantidade": quantidade,
+                    "preco_unitario": preco_unitario,
+                    "subtotal": subtotal,
+                }
+            )
 
         conn.commit()
         logger.info(
-            f"Venda registrada: #{codigo}, Cliente: {cliente_nome}, Total: {valor_final}")
+            f"Venda ID {venda_id} (Cód: {codigo_venda}) registrada com sucesso. Valor: {valor_final_venda}, Itens: {len(itens)}."
+        )
 
         return {
-            "id": venda_id,
-            "codigo": codigo,
+            "venda_id": venda_id,
+            "codigo": codigo_venda,
             "cliente_nome": cliente_nome,
-            "valor_total": valor_total,
+            "valor_total_bruto": valor_total_bruto,
             "desconto": desconto,
-            "valor_final": valor_final
+            "valor_final": valor_final_venda,
+            "itens_registrados": itens_processados,
+            "data_venda": data_venda_iso,
         }
 
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Erro ao registrar venda: {str(e)}")
+    except (ValueError, sqlite3.Error) as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Erro ao adicionar venda: {e}", exc_info=True)
         raise
+    finally:
+        if conn:
+            conn.close()

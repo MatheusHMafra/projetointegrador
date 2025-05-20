@@ -123,7 +123,7 @@ function carregarFornecedores() {
     // Limpar parâmetros nulos ou vazios
     Object.keys(params).forEach(key => (params[key] === null || params[key] === '') && delete params[key]);
 
-    axios.get('/fornecedores', { params })
+    axios.get(API_ROUTES.FORNECEDORES_LISTAR_CRIAR, { params })
         .then(response => {
             const data = response.data;
             fornecedoresList = data.fornecedores || []; // Armazena a lista da página atual
@@ -247,7 +247,7 @@ function adicionarFornecedor() {
 
     toggleLoading(true);
 
-    axios.post('/fornecedores', {
+    axios.post(API_ROUTES.FORNECEDORES_LISTAR_CRIAR, {
         nome,
         cnpj: cnpj || null,
         telefone: telefone || null,
@@ -286,7 +286,7 @@ function adicionarFornecedor() {
 function editarFornecedor(id) {
     toggleLoading(true);
 
-    axios.get(`/fornecedores/${id}`)
+    axios.get(API_ROUTES.FORNECEDOR_DETALHES(id))
         .then(response => {
             const fornecedor = response.data;
 
@@ -337,7 +337,7 @@ function atualizarFornecedor() {
 
     toggleLoading(true);
 
-    axios.put(`/fornecedores/${id}`, {
+    axios.put(API_ROUTES.FORNECEDOR_DETALHES(id), {
         nome,
         cnpj: cnpj || null,
         telefone: telefone || null,
@@ -390,7 +390,7 @@ function confirmarExclusaoFornecedor() {
 
     toggleLoading(true);
 
-    axios.delete(`/fornecedores/${id}`)
+    axios.delete(API_ROUTES.FORNECEDOR_DETALHES(id))
         .then(response => {
             showNotification('Fornecedor excluído com sucesso!', 'success');
 
@@ -424,7 +424,7 @@ function confirmarExclusaoFornecedor() {
 function alternarStatusFornecedor(id) {
     toggleLoading(true);
 
-    axios.post(`/fornecedores/${id}/alternar-status`)
+    axios.post(API_ROUTES.FORNECEDOR_ALTERNAR_STATUS(id))
         .then(response => {
             showNotification(`Fornecedor ${response.data.ativo ? 'ativado' : 'desativado'} com sucesso!`, 'success');
             // Recarrega a lista na página atual para refletir a mudança
@@ -458,7 +458,7 @@ function verProdutosFornecedor(id, nome, page = 1) {
 
     toggleLoading(true); // Pode ser redundante se o modal já tiver spinner
 
-    axios.get(`/fornecedores/${id}/produtos`, {
+    axios.get(API_ROUTES.FORNECEDOR_PRODUTOS(id), {
         params: {
             page: currentProdutosFornecedorPage,
             per_page: 5 // Define quantos produtos mostrar por página no modal

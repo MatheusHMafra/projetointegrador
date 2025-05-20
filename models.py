@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS categoria (
 """
 
 SQL_CREATE_FORNECEDOR = """
-CREATE TABLE IF NOT EXISTS fornecedor (
+CREATE TABLE IF NOT EXISTS fornecedores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     cnpj TEXT UNIQUE,
@@ -58,15 +58,15 @@ CREATE TABLE IF NOT EXISTS produto (
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ultima_atualizacao TIMESTAMP, -- 'onupdate' precisa ser tratado na aplicação
     FOREIGN KEY (categoria_id) REFERENCES categoria (id),
-    FOREIGN KEY (fornecedor_id) REFERENCES fornecedor (id)
+    FOREIGN KEY (fornecedor_id) REFERENCES fornecedores (id)
 );
 """
 SQL_CREATE_INDEX_PRODUTO_CODIGO = """
 CREATE INDEX IF NOT EXISTS idx_produto_codigo ON produto(codigo);
 """
 
-SQL_CREATE_MOVIMENTO_ESTOQUE = """
-CREATE TABLE IF NOT EXISTS movimento_estoque (
+SQL_CREATE_ESTOQUE_MOVIMENTACAO = """
+CREATE TABLE IF NOT EXISTS estoque_movimentacao (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     produto_id INTEGER NOT NULL,
     usuario_id INTEGER,
@@ -153,13 +153,13 @@ def init_db_sqlite():
         print("Criando tabela categoria...")
         cursor.execute(SQL_CREATE_CATEGORIA)
         print("Criando tabela fornecedor...")
-        cursor.execute(SQL_CREATE_FORNECEDOR)
+        cursor.execute(SQL_CREATE_FORNECEDOR) # Usa a constante que agora cria 'fornecedores'
         print("Criando tabela produto...")
-        cursor.execute(SQL_CREATE_PRODUTO)
+        cursor.execute(SQL_CREATE_PRODUTO) # Usa a constante que agora referencia 'fornecedores'
         print("Criando índice em produto.codigo...")
         cursor.execute(SQL_CREATE_INDEX_PRODUTO_CODIGO)
-        print("Criando tabela movimento_estoque...")
-        cursor.execute(SQL_CREATE_MOVIMENTO_ESTOQUE)
+        print("Criando tabela estoque_movimentacao...")
+        cursor.execute(SQL_CREATE_ESTOQUE_MOVIMENTACAO) # Usa a constante com o nome corrigido
         print("Criando tabela grupo_produto...")
         cursor.execute(SQL_CREATE_GRUPO_PRODUTO)
         print("Criando tabela produtos_grupos...")

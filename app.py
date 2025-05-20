@@ -51,7 +51,7 @@ def create_app():
     @app.before_request
     def require_login():
         # Permitir acesso a rotas de autenticação, arquivos estáticos e inicialização de dados
-        allowed_endpoints = ['auth.login', 'static', 'init_data', 'api_teste']
+        allowed_endpoints = ['auth.login', 'static', 'init_data']
         if request.endpoint and (request.endpoint.startswith('auth.') or request.endpoint in allowed_endpoints or request.endpoint == 'static'):
             return  # Permitir acesso
 
@@ -60,7 +60,7 @@ def create_app():
             if request.is_json:
                  return jsonify({"error": "Autenticação necessária"}), 401
             # Redirecionar para a página de login para requisições normais
-            return redirect(url_for('auth.login', next=request.url))
+            return redirect(url_for('auth.login'))
 
     # Rota principal
     @app.route('/')
@@ -84,13 +84,13 @@ def create_app():
         return jsonify(estatisticas)
     
     # Inicialização de dados (para desenvolvimento) - Já permitido pelo before_request
-    @app.route('/api/init-data', methods=['GET'])
-    def init_data():
-        with app.app_context():
-            sucesso = inicializar_dados_exemplo()
-            if sucesso:
-                return jsonify({"message": "Dados inicializados com sucesso"})
-            return jsonify({"message": "Dados já existem no sistema"})
+    #@app.route('/api/init-data', methods=['GET'])
+    #def init_data():
+        #sucesso = inicializar_dados_exemplo()
+        #if sucesso:
+        #    app.logger.info('Dados de exemplo inicializados com sucesso')
+        #else:
+        #    app.logger.error("Erro ao inicializar dados de exemplo.")
 
     app.logger.info('Aplicação iniciada com sucesso')
     return app

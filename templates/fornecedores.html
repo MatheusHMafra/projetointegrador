@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-br" data-theme="dark"> <!-- Mantém data-theme aqui -->
+
 <head>
     {% include '_head.html' %}
     {% block title %}Fornecedores - GEP{% endblock %}
 </head>
+
 <body>
     <div class="d-flex">
-         <!-- Inclui a Sidebar -->
+        <!-- Inclui a Sidebar -->
         {% include '_sidebar.html' %}
 
         <!-- Main Content -->
@@ -21,7 +23,8 @@
                     <div class="search-bar">
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" id="busca-fornecedor" class="form-control" placeholder="Buscar fornecedor...">
+                            <input type="text" id="busca-fornecedor" class="form-control"
+                                placeholder="Buscar fornecedor...">
                         </div>
                     </div>
 
@@ -31,15 +34,19 @@
                     </button>
 
                     <div class="dropdown">
-                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle"></i>
                             <span>{{ session.nome_usuario }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
+                                        class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
                         </ul>
                     </div>
                 </div>
@@ -48,21 +55,22 @@
             <!-- Page Content -->
             <div class="container-fluid mt-4">
                 {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
                 {% endwith %}
 
                 <!-- Dashboard Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="page-title"><i class="fas fa-truck me-2"></i>Fornecedores</h1>
                     <div>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAdicionarFornecedor">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#modalAdicionarFornecedor">
                             <i class="fas fa-plus me-2"></i>Novo Fornecedor
                         </button>
                     </div>
@@ -142,7 +150,8 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="cnpjFornecedor" class="form-label">CNPJ</label>
-                                <input type="text" class="form-control" id="cnpjFornecedor" placeholder="00.000.000/0000-00">
+                                <input type="text" class="form-control" id="cnpjFornecedor"
+                                    placeholder="00.000.000/0000-00">
                             </div>
                         </div>
                         <div class="row">
@@ -195,7 +204,8 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="editCnpjFornecedor" class="form-label">CNPJ</label>
-                                <input type="text" class="form-control" id="editCnpjFornecedor" placeholder="00.000.000/0000-00">
+                                <input type="text" class="form-control" id="editCnpjFornecedor"
+                                    placeholder="00.000.000/0000-00">
                             </div>
                         </div>
                         <div class="row">
@@ -235,7 +245,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Modal Visualizar Produtos do Fornecedor -->
     <div class="modal fade" id="modalProdutosFornecedor" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -259,7 +269,8 @@
                             </thead>
                             <tbody id="produtos-fornecedor-tabela">
                                 <tr>
-                                    <td colspan="5" class="text-center">Carregando produtos...</td> <!-- Colspan atualizado -->
+                                    <td colspan="5" class="text-center">Carregando produtos...</td>
+                                    <!-- Colspan atualizado -->
                                 </tr>
                             </tbody>
                         </table>
@@ -283,7 +294,8 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirmar Exclusão</h5>
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirmar
+                        Exclusão</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -299,7 +311,7 @@
         </div>
     </div>
 
-     <!-- Loading Spinner -->
+    <!-- Loading Spinner -->
     <div id="loading-spinner" class="loading-spinner" style="display: flex;">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Carregando...</span>
@@ -315,7 +327,9 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script> <!-- Script geral -->
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script> <!-- Script da Sidebar -->
-    <script src="{{ url_for('static', filename='js/fornecedores.js') }}"></script> <!-- Script específico de Fornecedores -->
+    <script src="{{ url_for('static', filename='js/fornecedores.js') }}"></script>
+    <!-- Script específico de Fornecedores -->
 
 </body>
+
 </html>
