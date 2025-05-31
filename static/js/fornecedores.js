@@ -123,7 +123,7 @@ function carregarFornecedores() {
     // Limpar parâmetros nulos ou vazios
     Object.keys(params).forEach(key => (params[key] === null || params[key] === '') && delete params[key]);
 
-    axios.get(API_ROUTES.FORNECEDORES_LISTAR_CRIAR, { params })
+    axios.get(API_ROUTES.FORNECEDORES_LISTAR, { params }) // Correção aqui
         .then(response => {
             const data = response.data;
             fornecedoresList = data.fornecedores || []; // Armazena a lista da página atual
@@ -247,7 +247,7 @@ function adicionarFornecedor() {
 
     toggleLoading(true);
 
-    axios.post(API_ROUTES.FORNECEDORES_LISTAR_CRIAR, {
+    axios.post(API_ROUTES.FORNECEDORES_LISTAR, { // Correção aqui
         nome,
         cnpj: cnpj || null,
         telefone: telefone || null,

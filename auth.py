@@ -1,11 +1,8 @@
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, session, flash
-# Assumindo que get_db configura row_factory = sqlite3.Row
 from database_utils import get_db
 from datetime import datetime
 from functools import wraps
-# Adicionado generate_password_hash
 from werkzeug.security import check_password_hash, generate_password_hash
-import sqlite3  # Importar sqlite3 para exceções e possivelmente outros usos
 
 # Criar Blueprint para autenticação
 auth_bp = Blueprint('auth', __name__)

@@ -24,16 +24,6 @@
                 <span>Produtos</span>
             </a>
         </li>
-        <!-- Item Categorias -->
-        <li
-            class="{{ 'active' if request.endpoint == 'produtos.produtos_page_html' or request.endpoint == 'produtos.produtos_page_html' else '' }}">
-            <!-- Corrigido link para categorias -->
-            <a href="#">
-                <!--{{ url_for('produtos.produtos_page_html') }}">-->
-                <i class="fas fa-tags"></i>
-                <span>Categorias</span>
-            </a>
-        </li>
         <!-- Item Movimentações -->
         <li class="{{ 'active' if request.endpoint.startswith('estoque.') else '' }}">
             <!-- Corrigido link para movimentações -->

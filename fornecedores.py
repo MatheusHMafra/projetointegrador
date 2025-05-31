@@ -77,10 +77,10 @@ def gerenciar_todos_fornecedores():
             query_select_base = f"""
                 SELECT f.id, f.nome, f.cnpj, f.telefone, f.email, f.contato, f.ativo,
                        {produtos_count_subquery} as total_produtos
-                FROM fornecedor f
+                FROM fornecedores f
             """
             # Base da query de contagem total de fornecedores
-            query_count_base = "SELECT COUNT(f.id) FROM fornecedor f"
+            query_count_base = "SELECT COUNT(f.id) FROM fornecedores f"
 
             where_clauses = []
 
