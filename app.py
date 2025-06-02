@@ -84,13 +84,13 @@ def create_app():
         return jsonify(estatisticas)
     
     # Inicialização de dados (para desenvolvimento) - Já permitido pelo before_request
-    #@app.route('/api/init-data', methods=['GET'])
-    #def init_data():
-        #sucesso = inicializar_dados_exemplo()
-        #if sucesso:
-        #    app.logger.info('Dados de exemplo inicializados com sucesso')
-        #else:
-        #    app.logger.error("Erro ao inicializar dados de exemplo.")
+    @app.route('/api/init-data', methods=['GET'])
+    def init_data():
+        sucesso = inicializar_dados_exemplo()
+        if sucesso:
+            app.logger.info('Dados de exemplo inicializados com sucesso')
+        else:
+            app.logger.error("Erro ao inicializar dados de exemplo.")
 
     app.logger.info('Aplicação iniciada com sucesso')
     return app
@@ -100,5 +100,5 @@ app = create_app()
 
 if __name__ == '__main__':
     # Iniciar a aplicação
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 80))
     app.run(host='0.0.0.0', port=port)

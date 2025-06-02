@@ -9,3 +9,7 @@ __pycache__
 # Log files and database files
 logs
 *.db
+
+# Arquivo para testes
+compactar.py
+projetointegrador.zip
