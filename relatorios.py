@@ -144,6 +144,7 @@ def get_stock_level_reports():
         status_filter = request.args.get("status")  # 'baixo', 'ok', 'excesso'
 
         # Query base
+        # Corrected table name for join
         query_select = """
             SELECT p.id, p.codigo, p.nome, p.estoque, p.estoque_minimo,
                    c.nome as categoria_nome, f.nome as fornecedor_nome,
@@ -154,42 +155,50 @@ def get_stock_level_reports():
                    END as status_estoque
             FROM produto p
             LEFT JOIN categoria c ON p.categoria_id = c.id
-            LEFT JOIN fornecedor f ON p.fornecedor_id = f.id
+            LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
-        query_count = "SELECT COUNT(p.id) FROM produto p"
+        query_count = "SELECT COUNT(p.id) FROM produto p" # Base count, filters will be added
 
         where_clauses = []
-        params = []
+        params = [] # Parameters for the WHERE clauses
 
+        # Build WHERE clause for the main query and count query
+        # Need to join with fornecedores if filtering by it, but here we only filter by status_estoque
+        # The status_estoque is a calculated field, so we might need a subquery or filter after fetching
+        # For simplicity with SQLite, let's fetch all and filter in Python if status_filter is complex,
+        # or adjust the CASE statement and WHERE clause carefully.
+        # A more direct SQL way for status_filter:
+        
+        status_condition_sql = ""
         if status_filter:
             if status_filter == "baixo":
-                where_clauses.append("p.estoque <= p.estoque_minimo")
-            elif (
-                status_filter == "ok"
-            ):  # Adapte a lógica conforme sua definição de 'ok'
-                where_clauses.append(
-                    "p.estoque > p.estoque_minimo AND p.estoque <= (p.estoque_minimo * 2)"
-                )
-            elif status_filter == "excesso":  # Adapte a lógica
-                where_clauses.append("p.estoque > (p.estoque_minimo * 2)")
-            # Se status_filter for inválido, não filtra por status
+                status_condition_sql = "p.estoque <= p.estoque_minimo"
+            elif status_filter == "ok":
+                status_condition_sql = "p.estoque > p.estoque_minimo AND p.estoque <= (p.estoque_minimo * 2)"
+            elif status_filter == "excesso":
+                status_condition_sql = "p.estoque > (p.estoque_minimo * 2)"
+            
+            if status_condition_sql:
+                 where_clauses.append(status_condition_sql)
+
 
         where_sql = ""
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
-
+        
         # Contagem
-        cursor.execute(
-            query_count + where_sql, params
-        )  # params para where_sql se houver
+        # The count query also needs the WHERE clause
+        cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
         total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
         # Listagem
-        order_by_sql = " ORDER BY p.nome ASC"  # Ou status_estoque, p.estoque
+        order_by_sql = " ORDER BY p.nome ASC" 
         limit_offset_sql = " LIMIT ? OFFSET ?"
 
         final_query = query_select + where_sql + order_by_sql + limit_offset_sql
+        
+        # Add pagination params to the existing params for WHERE clause
         params_paginated = params + [per_page, (page - 1) * per_page]
 
         cursor.execute(final_query, params_paginated)

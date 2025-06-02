@@ -190,11 +190,23 @@ def gerenciar_categoria_especifica(categoria_id):
                         jsonify({"error": "Já existe outra categoria com este nome."}),
                         409,
                     )
-
-            cursor.execute(
-                "UPDATE categoria SET nome = ?, descricao = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
-                (novo_nome, nova_descricao, categoria_id),
-            )
+            # Assuming 'ultima_atualizacao' column exists in 'categoria' table
+            # If not, this part of the query will cause an error.
+            # For now, let's assume it exists or will be added.
+            # If it doesn't exist, remove ", ultima_atualizacao = CURRENT_TIMESTAMP"
+            try:
+                cursor.execute(
+                    "UPDATE categoria SET nome = ?, descricao = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
+                    (novo_nome, nova_descricao, categoria_id),
+                )
+            except sqlite3.OperationalError as oe:
+                 if "no such column: ultima_atualizacao" in str(oe):
+                      cursor.execute(
+                        "UPDATE categoria SET nome = ?, descricao = ? WHERE id = ?",
+                        (novo_nome, nova_descricao, categoria_id),
+                    )
+                 else:
+                      raise # re-raise other operational errors
             conn.commit()
             return jsonify(
                 {
@@ -366,8 +378,9 @@ def gerenciar_todos_produtos():
                     404,
                 )
             if fornecedor_id:
+                # Corrected table name
                 cursor.execute(
-                    "SELECT id FROM fornecedor WHERE id = ?", (fornecedor_id,)
+                    "SELECT id FROM fornecedores WHERE id = ?", (fornecedor_id,)
                 )
                 if not cursor.fetchone():
                     return (
@@ -487,12 +500,13 @@ def gerenciar_produto_especifico(produto_id):
 
         # Função auxiliar para buscar o produto com joins
         def fetch_produto_completo(pid):
+            # Corrected table name for join
             cursor.execute(
                 """
                 SELECT p.*, c.nome as categoria_nome, f.nome as fornecedor_nome
                 FROM produto p
                 LEFT JOIN categoria c ON p.categoria_id = c.id
-                LEFT JOIN fornecedor f ON p.fornecedor_id = f.id
+                LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
                 WHERE p.id = ?
             """,
                 (pid,),
@@ -508,15 +522,19 @@ def gerenciar_produto_especifico(produto_id):
         if request.method == "GET":
             # Formatar data para exibição
             try:
-                dt_obj = datetime.datetime.fromisoformat(
-                    str(produto_dict_orig["data_criacao"])
-                )
-                produto_dict_orig["data_criacao_fmt"] = dt_obj.strftime(
-                    "%d/%m/%Y %H:%M"
-                )
-            except:
+                # Ensure data_criacao is not None and is a string before formatting
+                if produto_dict_orig.get("data_criacao"):
+                    dt_obj = datetime.datetime.fromisoformat(
+                        str(produto_dict_orig["data_criacao"])
+                    )
+                    produto_dict_orig["data_criacao_fmt"] = dt_obj.strftime(
+                        "%d/%m/%Y %H:%M"
+                    )
+                else:
+                    produto_dict_orig["data_criacao_fmt"] = "N/A"
+            except (ValueError, TypeError): # Catch potential errors if data_criacao is not a valid ISO format string
                 produto_dict_orig["data_criacao_fmt"] = str(
-                    produto_dict_orig["data_criacao"]
+                    produto_dict_orig.get("data_criacao", "N/A") # Fallback
                 )
             return jsonify(produto_dict_orig)
 
@@ -583,8 +601,9 @@ def gerenciar_produto_especifico(produto_id):
                                 404,
                             )
                     if field == "fornecedor_id" and value:  # Fornecedor pode ser None
+                        # Corrected table name
                         cursor.execute(
-                            "SELECT id FROM fornecedor WHERE id = ?", (int(value),)
+                            "SELECT id FROM fornecedores WHERE id = ?", (int(value),)
                         )
                         if not cursor.fetchone():
                             return (
@@ -597,12 +616,18 @@ def gerenciar_produto_especifico(produto_id):
                     update_fields_sql.append(f"{field} = ?")
                     # Converter para tipos corretos antes de adicionar aos params
                     if field in ["preco", "preco_compra"] and value is not None:
-                        params_update.append(float(value))
+                        try:
+                            params_update.append(float(value))
+                        except ValueError:
+                             return jsonify({"error": f"Valor inválido para {field}."}), 400
                     elif (
                         field in ["categoria_id", "fornecedor_id", "estoque_minimo"]
                         and value is not None
                     ):
-                        params_update.append(int(value) if value else None)
+                        try:
+                            params_update.append(int(value) if value else None)
+                        except ValueError:
+                            return jsonify({"error": f"Valor inválido para {field}."}), 400
                     else:
                         params_update.append(
                             value.strip() if isinstance(value, str) else value
@@ -617,15 +642,20 @@ def gerenciar_produto_especifico(produto_id):
                 try:
                     file.save(filepath)
                     # Se uma imagem antiga existir e for diferente, excluí-la (opcional)
-                    if produto_dict_orig.get("imagem_url") and os.path.exists(
-                        produto_dict_orig["imagem_url"].lstrip("/")
-                    ):
-                        if (
-                            produto_dict_orig["imagem_url"]
-                            != f"/{filepath.replace(os.sep, '/')}"
-                        ):  # Evita deletar a mesma imagem
-                            # os.remove(os.path.join('static', produto_dict_orig['imagem_url'].lstrip('/'))) # Cuidado com caminhos
-                            pass  # Deixar a exclusão manual ou por um job de limpeza
+                    if produto_dict_orig.get("imagem_url"):
+                        old_image_path_relative = produto_dict_orig["imagem_url"].lstrip("/")
+                        old_image_path_full = os.path.join(current_app.root_path, old_image_path_relative)
+                        if os.path.exists(old_image_path_full) and UPLOAD_FOLDER in old_image_path_full:
+                            if (
+                                produto_dict_orig["imagem_url"]
+                                != f"/{filepath.replace(os.sep, '/')}"
+                            ): 
+                                try:
+                                    os.remove(old_image_path_full)
+                                    current_app.logger.info(f"Imagem antiga {old_image_path_full} excluída.")
+                                except OSError as e_rm:
+                                    current_app.logger.error(f"Erro ao remover imagem antiga {old_image_path_full}: {e_rm}")
+
 
                     update_fields_sql.append("imagem_url = ?")
                     params_update.append(f"/{filepath.replace(os.sep, '/')}")
@@ -637,10 +667,21 @@ def gerenciar_produto_especifico(produto_id):
             elif (
                 "imagem_url" in data
                 and data["imagem_url"] is None
-                and "imagem_url" not in update_fields_sql
-            ):  # Permitir remover imagem_url
+                and "imagem_url = ?" not in " ".join(update_fields_sql) # Check if not already set to be updated
+            ): 
                 update_fields_sql.append("imagem_url = ?")
                 params_update.append(None)
+                 # Excluir imagem antiga se a URL for definida como None
+                if produto_dict_orig.get("imagem_url"):
+                    old_image_path_relative = produto_dict_orig["imagem_url"].lstrip("/")
+                    old_image_path_full = os.path.join(current_app.root_path, old_image_path_relative)
+                    if os.path.exists(old_image_path_full) and UPLOAD_FOLDER in old_image_path_full:
+                        try:
+                            os.remove(old_image_path_full)
+                            current_app.logger.info(f"Imagem antiga {old_image_path_full} excluída ao setar imagem_url para None.")
+                        except OSError as e_rm:
+                            current_app.logger.error(f"Erro ao remover imagem antiga {old_image_path_full}: {e_rm}")
+
 
             if not update_fields_sql:
                 return jsonify({"message": "Nenhuma alteração válida fornecida."})
@@ -668,7 +709,7 @@ def gerenciar_produto_especifico(produto_id):
 
             # Verificar movimentos de estoque ou vendas associadas
             cursor.execute(
-                "SELECT COUNT(id) FROM movimento_estoque WHERE produto_id = ?",
+                "SELECT COUNT(id) FROM estoque_movimentacao WHERE produto_id = ?", # Corrected table name
                 (produto_id,),
             )
             if cursor.fetchone()[0] > 0:
@@ -708,21 +749,15 @@ def gerenciar_produto_especifico(produto_id):
             imagem_a_excluir = produto_dict_orig.get("imagem_url")
             if imagem_a_excluir:
                 try:
-                    # Constrói o caminho absoluto para o arquivo
-                    # Baseado na estrutura UPLOAD_FOLDER = os.path.join('static', 'uploads', 'produtos')
-                    # e imagem_url = '/static/uploads/produtos/...'
-                    # Precisamos remover o '/static/' inicial para formar o caminho a partir da raiz do projeto.
-                    path_relativa_app = imagem_a_excluir.lstrip(
-                        "/"
-                    )  # Remove a primeira '/' se houver
+                    path_relativa_app = imagem_a_excluir.lstrip("/")
                     caminho_completo_imagem = os.path.join(
                         current_app.root_path, path_relativa_app
                     )
 
                     if (
                         os.path.exists(caminho_completo_imagem)
-                        and UPLOAD_FOLDER in caminho_completo_imagem
-                    ):  # Segurança extra
+                        and UPLOAD_FOLDER in caminho_completo_imagem # Security check
+                    ):
                         os.remove(caminho_completo_imagem)
                         current_app.logger.info(
                             f"Imagem {caminho_completo_imagem} excluída para produto ID {produto_id}."
@@ -932,10 +967,17 @@ def produtos_page_html():
     return render_template("produtos.html")
 
 
-# Adicionar outras rotas de página HTML para adicionar/editar se não forem modais.
-# Exemplo:
-# @produtos_bp.route('/adicionar/page', methods=['GET'])
-# @login_required
-# @acesso_requerido(['admin', 'gerente'])
-# def adicionar_produto_page_html():
-#     return render_template('adicionar_produto_form.html') # Um template de formulário dedicado
+# Rota para adicionar produto (página HTML, se for separada do modal)
+@produtos_bp.route('/adicionar', methods=['GET']) # Removido POST, pois o POST é para a API /produtos/
+@login_required
+@acesso_requerido(['admin', 'gerente'])
+def adicionar_produto(): # Renomeado para evitar conflito com a API
+    # Esta rota renderiza o formulário. A submissão do formulário deve ir para a API /produtos (POST)
+    # Se o formulário estiver em um modal na página principal de produtos, esta rota pode não ser necessária.
+    # Se for uma página separada:
+    # return render_template('adicionar_produto_form.html') # Certifique-se que este template existe
+    # Por enquanto, vamos assumir que a adição é via modal em produtos.html, então esta rota pode ser redundante
+    # ou redirecionar para a página principal de produtos se não houver um form dedicado.
+    flash("Para adicionar produtos, use o modal na página de listagem.", "info")
+    return redirect(url_for('produtos.produtos_page_html'))
+

@@ -7,38 +7,47 @@
 
 const API_ROUTES = {
   // Autenticação
-  AUTH_LOGIN: "/auth/login", // Example, not used by dashboard.js directly
-  AUTH_CHECK: "/auth/check", // Example
+  AUTH_LOGIN: "/auth/login", 
+  AUTH_LOGOUT: "/auth/logout", // Added for completeness, though sidebar uses url_for
+  AUTH_CHECK: "/auth/check", 
 
   // Dashboard
-  DASHBOARD_STATS: "/api/dashboard/stats", // Used by carregarEstatisticas, carregarProdutosEstoqueBaixoCard
-  // Matches @app.route('/api/dashboard/stats') in app.py
+  DASHBOARD_STATS: "/api/dashboard/stats", 
 
   // Produtos
-  PRODUTOS_LISTAR: "/produtos", // Matches @produtos_bp.route('/')
-  PRODUTO_DETALHES: (id) => `/produtos/${id}`, // Example
-  PRODUTOS_BUSCA: "/produtos/busca", // Matches @produtos_bp.route('/busca')
-  PRODUTOS_ESTOQUE_BAIXO_LISTA: "/produtos/estoque-baixo", // For a list, if different from stats
-  // Matches @produtos_bp.route('/estoque-baixo')
-  PRODUTOS_MAIS_VENDIDOS: "/produtos/mais-vendidos", // Matches @produtos_bp.route('/mais-vendidos')
-  PRODUTOS_MENOS_VENDIDOS: "/produtos/menos-vendidos", // Matches @produtos_bp.route('/menos-vendidos')
+  PRODUTOS_LISTAR: "/produtos/", // Base route for GET (list) and POST (add)
+  PRODUTO_DETALHES: (id) => `/produtos/${id}`, // For GET (details), PUT (update), DELETE
+  PRODUTOS_BUSCA: "/produtos/busca", 
+  // PRODUTOS_ESTOQUE_BAIXO_LISTA: "/produtos/estoque-baixo", // This might be part of DASHBOARD_STATS or a specific filter on PRODUTOS_LISTAR
+  PRODUTOS_MAIS_VENDIDOS: "/produtos/mais-vendidos", 
+  PRODUTOS_MENOS_VENDIDOS: "/produtos/menos-vendidos", 
 
   // Categorias
-  CATEGORIAS_LISTAR: "/produtos/categorias", // Matches @produtos_bp.route('/categorias')
+  CATEGORIAS_LISTAR: "/produtos/categorias", // For GET (list) and POST (add)
+  CATEGORIA_DETALHES: (id) => `/produtos/categorias/${id}`, // For GET (details), PUT, DELETE
 
   // Fornecedores
-  FORNECEDORES_LISTAR: "/fornecedores", // Matches @fornecedores_bp.route('/')
+  FORNECEDORES_LISTAR: "/fornecedores/", // Base route for GET (list) and POST (add)
+  FORNECEDOR_DETALHES: (id) => `/fornecedores/${id}`, // For GET (details), PUT, DELETE
+  FORNECEDOR_PRODUTOS: (id) => `/fornecedores/${id}/produtos`, // To list products of a specific supplier
+  FORNECEDOR_ALTERNAR_STATUS: (id) => `/fornecedores/${id}/alternar-status`, // To toggle active/inactive status
 
   // Estoque / Movimentações
-  ESTOQUE_MOVIMENTACOES_LISTAR: "/estoque/movimentacoes", // Matches @estoque_bp.route('/movimentacoes')
-  ESTOQUE_MOVIMENTACOES_GRAFICO: "/estoque/movimentacoes/grafico", // Matches @estoque_bp.route('/movimentacoes/grafico')
-  // Used by criarGraficoMovimentacao
+  ESTOQUE_MOVIMENTACOES_LISTAR: "/estoque/movimentacoes", 
+  ESTOQUE_MOVIMENTACOES_GRAFICO: "/estoque/movimentacoes/grafico", 
+  ESTOQUE_ENTRADA: "/estoque/entrada",
+  ESTOQUE_SAIDA: "/estoque/saida",
+  ESTOQUE_AJUSTE: "/estoque/ajuste",
 
   // Vendas
-  VENDAS_LISTAR_REGISTRAR: "/estoque/vendas", // Matches @estoque_bp.route('/vendas')
+  VENDAS_LISTAR_REGISTRAR: "/estoque/vendas", // For GET (list) and POST (add)
+  VENDA_DETALHES: (id) => `/estoque/vendas/${id}`, // For GET (details)
+  VENDA_CANCELAR: (id) => `/estoque/vendas/${id}/cancelar`, // For POST (cancel)
 
-  // Relatórios (se a rota /relatorios/vendas/produtos for a principal de relatórios para o dashboard)
-  RELATORIOS_VENDAS_PRODUTOS: "/relatorios/vendas/produtos", // Matches @relatorios_bp.route('/vendas/produtos')
+
+  // Relatórios
+  RELATORIOS_VENDAS_PRODUTOS: "/relatorios/vendas/produtos", 
+  RELATORIOS_ESTOQUE_NIVEIS: "/relatorios/estoque/niveis",
 
   // Adicione outras rotas conforme necessário
 };
