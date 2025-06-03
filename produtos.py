@@ -966,18 +966,10 @@ def produtos_page_html():
     """Renderiza a página principal de produtos."""
     return render_template("produtos.html")
 
-
-# Rota para adicionar produto (página HTML, se for separada do modal)
-@produtos_bp.route('/adicionar', methods=['GET']) # Removido POST, pois o POST é para a API /produtos/
+@produtos_bp.route("/categorias/page", methods=["GET"])
 @login_required
-@acesso_requerido(['admin', 'gerente'])
-def adicionar_produto(): # Renomeado para evitar conflito com a API
-    # Esta rota renderiza o formulário. A submissão do formulário deve ir para a API /produtos (POST)
-    # Se o formulário estiver em um modal na página principal de produtos, esta rota pode não ser necessária.
-    # Se for uma página separada:
-    # return render_template('adicionar_produto_form.html') # Certifique-se que este template existe
-    # Por enquanto, vamos assumir que a adição é via modal em produtos.html, então esta rota pode ser redundante
-    # ou redirecionar para a página principal de produtos se não houver um form dedicado.
-    flash("Para adicionar produtos, use o modal na página de listagem.", "info")
-    return redirect(url_for('produtos.produtos_page_html'))
+# Adicione @acesso_requerido se necessário, e.g. @acesso_requerido(["admin", "gerente"])
+def categorias_page_html():
+    """Renderiza a página de gerenciamento de categorias."""
+    return render_template("categorias.html")
 

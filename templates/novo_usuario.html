@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark">
+
+<head>
+    {% include '_head.html' %}
+    {% block title %}Novo Usuário - GEP{% endblock %}
+</head>
+
+<body>
+    <div class="d-flex">
+        {% include '_sidebar.html' %}
+        <div class="main-content">
+            <nav class="navbar sticky-top">
+                <div class="container-fluid">
+                    <button class="btn sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0">Novo Usuário</h5>
+                    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session.user_name if session.user_name else 'Usuário' }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.alterar_senha') }}"><i
+                                        class="fas fa-key me-2"></i> Alterar Senha</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
+                                        class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container-fluid mt-4">
+                <div class="row justify-content-center">
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Cadastrar Novo Usuário</h5>
+                            </div>
+                            <div class="card-body">
+                                {% with messages = get_flashed_messages(with_categories=true) %}
+                                {% if messages %}
+                                {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                        aria-label="Close"></button>
+                                </div>
+                                {% endfor %}
+                                {% endif %}
+                                {% endwith %}
+
+                                <form method="POST" action="{{ url_for('auth.novo_usuario') }}" id="formNovoUsuario">
+                                    <div class="mb-3">
+                                        <label for="nome" class="form-label">Nome Completo</label>
+                                        <input type="text" class="form-control" id="nome" name="nome" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="senha" class="form-label">Senha</label>
+                                        <input type="password" class="form-control" id="senha" name="senha" required
+                                            minlength="6">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="nivel_acesso" class="form-label">Nível de Acesso</label>
+                                        <select class="form-select" id="nivel_acesso" name="nivel_acesso" required>
+                                            <option value="operador" selected>Operador</option>
+                                            <option value="gerente">Gerente</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                        <a href="{{ url_for('auth.listar_usuarios') }}"
+                                            class="btn btn-secondary me-2">Cancelar</a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save me-1"></i> Salvar Usuário
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="footer">
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-0">GEP &copy; 2025</p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <p class="mb-0">v1.0.0</p>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <div id="notification" class="notification-popup" style="display:none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+
+</html>

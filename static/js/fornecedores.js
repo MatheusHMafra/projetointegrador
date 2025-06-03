@@ -1,5 +1,5 @@
 /**
- * EstoquePro - Gerenciamento de Fornecedores
+ * GEP - Gerenciamento de Fornecedores
  * 
  * Este script gerencia a interface de fornecedores, incluindo listagem,
  * adição, edição e exclusão de fornecedores.
