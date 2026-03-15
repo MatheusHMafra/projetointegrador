@@ -36,7 +36,8 @@ def entrada_produto():
         return jsonify({"error": "ID do produto é obrigatório."}), 400
 
     try:
-        quantidade = int(quantidade_str)  # Tenta converter quantidade para inteiro
+        # Tenta converter quantidade para inteiro
+        quantidade = int(quantidade_str)
         if quantidade <= 0:
             raise ValueError("Quantidade deve ser um número positivo.")
     except (ValueError, TypeError):
@@ -144,7 +145,8 @@ def saida_produto():
 # API para ajuste de estoque
 @estoque_bp.route("/ajuste", methods=["POST"])
 @login_required
-@acesso_requerido(["admin", "gerente"])  # Apenas admin ou gerente podem ajustar
+# Apenas admin ou gerente podem ajustar
+@acesso_requerido(["admin", "gerente"])
 def ajuste_estoque():
     """Ajusta o estoque de um produto para um novo valor."""
     data = request.json
@@ -263,7 +265,8 @@ def listar_movimentacoes():
                 params.append(data_fim_filter + " 23:59:59")
             except ValueError:
                 return (
-                    jsonify({"error": "Formato de data_fim inválido. Use YYYY-MM-DD."}),
+                    jsonify(
+                        {"error": "Formato de data_fim inválido. Use YYYY-MM-DD."}),
                     400,
                 )
 
@@ -427,7 +430,8 @@ def gerenciar_vendas():
                         "cliente_nome": (
                             v["cliente_nome"] if v["cliente_nome"] else "N/A"
                         ),
-                        "valor_total_bruto": v["valor_total"],  # Renomeado para clareza
+                        # Renomeado para clareza
+                        "valor_total_bruto": v["valor_total"],
                         "desconto": v["desconto"],
                         "valor_final": v["valor_final"],
                         "usuario_nome": (
@@ -452,7 +456,8 @@ def gerenciar_vendas():
             # A lógica de registrar venda foi movida para database_utils.adicionar_venda
             data = request.json
 
-            cliente_nome = data.get("cliente_nome", "Consumidor Final")  # Nome padrão
+            cliente_nome = data.get(
+                "cliente_nome", "Consumidor Final")  # Nome padrão
             itens = data.get("itens")
             desconto = data.get("desconto", 0.0)
             forma_pagamento = data.get("forma_pagamento")
@@ -463,7 +468,8 @@ def gerenciar_vendas():
                 return jsonify({"error": "Lista de itens é obrigatória."}), 400
             if not usuario_id:  # Deve ser pego da sessão
                 return (
-                    jsonify({"error": "Usuário não autenticado para registrar venda."}),
+                    jsonify(
+                        {"error": "Usuário não autenticado para registrar venda."}),
                     401,
                 )
 
@@ -496,7 +502,8 @@ def gerenciar_vendas():
                     f"Erro de banco de dados ao registrar venda: {e}", exc_info=True
                 )
                 return (
-                    jsonify({"error": "Erro no banco de dados ao registrar venda."}),
+                    jsonify(
+                        {"error": "Erro no banco de dados ao registrar venda."}),
                     500,
                 )
             except Exception as e:
@@ -592,7 +599,8 @@ def detalhes_venda(venda_id):
             exc_info=True,
         )
         return (
-            jsonify({"error": "Erro no banco de dados ao buscar detalhes da venda."}),
+            jsonify(
+                {"error": "Erro no banco de dados ao buscar detalhes da venda."}),
             500,
         )
     except Exception as e:
@@ -618,7 +626,8 @@ def cancelar_venda(venda_id):
         cursor = conn.cursor()
         conn.execute("BEGIN TRANSACTION")
 
-        cursor.execute("SELECT id, codigo FROM venda WHERE id = ?", (venda_id,))
+        cursor.execute(
+            "SELECT id, codigo FROM venda WHERE id = ?", (venda_id,))
         venda = cursor.fetchone()
         if not venda:
             conn.rollback()  # Importante reverter se a venda não existe
@@ -648,7 +657,8 @@ def cancelar_venda(venda_id):
         # Excluir itens da venda e a venda em si
         # ON DELETE CASCADE na tabela item_venda (se definido no schema) poderia simplificar,
         # mas excluir explicitamente é mais claro.
-        cursor.execute("DELETE FROM item_venda WHERE venda_id = ?", (venda_id,))
+        cursor.execute(
+            "DELETE FROM item_venda WHERE venda_id = ?", (venda_id,))
         cursor.execute("DELETE FROM venda WHERE id = ?", (venda_id,))
 
         conn.commit()

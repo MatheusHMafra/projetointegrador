@@ -5,7 +5,6 @@ Versão compatível com Python 3.13
 
 import logging
 import datetime
-from flask import current_app  # Import current_app for logging within app context
 from werkzeug.security import generate_password_hash
 import sqlite3
 import os
@@ -47,12 +46,14 @@ def inicializar_dados_exemplo():
             senha_hash_admin = generate_password_hash("admin123")
             cursor.execute(
                 "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
-                ("Administrador GEP", "admin@gep.com", senha_hash_admin, "admin", 1),
+                ("Administrador GEP", "admin@gep.com",
+                 senha_hash_admin, "admin", 1),
             )
             senha_hash_gerente = generate_password_hash("gerente123")
             cursor.execute(
                 "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
-                ("Gerente Loja", "gerente@gep.com", senha_hash_gerente, "gerente", 1),
+                ("Gerente Loja", "gerente@gep.com",
+                 senha_hash_gerente, "gerente", 1),
             )
             senha_hash_operador = generate_password_hash("operador123")
             cursor.execute(
@@ -132,9 +133,11 @@ def inicializar_dados_exemplo():
             # Obter IDs das categorias e fornecedores para associar aos produtos
             cursor.execute("SELECT id FROM categoria WHERE nome = 'Papelaria'")
             cat_papelaria_id = cursor.fetchone()["id"]
-            cursor.execute("SELECT id FROM categoria WHERE nome = 'Escritório'")
+            cursor.execute(
+                "SELECT id FROM categoria WHERE nome = 'Escritório'")
             cat_escritorio_id = cursor.fetchone()["id"]
-            cursor.execute("SELECT id FROM categoria WHERE nome = 'Informática'")
+            cursor.execute(
+                "SELECT id FROM categoria WHERE nome = 'Informática'")
             cat_informatica_id = cursor.fetchone()["id"]
 
             cursor.execute(
@@ -228,7 +231,8 @@ def inicializar_dados_exemplo():
             )
         return True  # Indica sucesso ou que dados já existiam
     except sqlite3.Error as e:
-        logger.error(f"Erro ao inicializar dados de exemplo: {e}", exc_info=True)
+        logger.error(
+            f"Erro ao inicializar dados de exemplo: {e}", exc_info=True)
         if conn:
             conn.rollback()
         return False  # Indica falha
@@ -303,10 +307,13 @@ def obter_estatisticas():
             mov_dict = dict(row)
             # Format date for display
             try:
-                dt_obj = datetime.datetime.fromisoformat(mov_dict["data_movimento"])
-                mov_dict["data_movimento_fmt"] = dt_obj.strftime("%d/%m/%y %H:%M")
-            except:  # Catch any parsing error
-                mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]  # fallback
+                dt_obj = datetime.datetime.fromisoformat(
+                    mov_dict["data_movimento"])
+                mov_dict["data_movimento_fmt"] = dt_obj.strftime(
+                    "%d/%m/%y %H:%M")
+            except:
+                # fallback
+                mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]
             resultado["movimentacoes_recentes"].append(mov_dict)
 
         return resultado
@@ -354,7 +361,8 @@ def registrar_movimento(
         sqlite3.Error: Em caso de erro no banco de dados.
     """
     if not all([produto_id, tipo]):
-        raise ValueError("Produto ID e Tipo são obrigatórios para registrar movimento.")
+        raise ValueError(
+            "Produto ID e Tipo são obrigatórios para registrar movimento.")
 
     # Para 'ajuste', quantidade é o novo estoque. Para outros, é a delta.
     if tipo not in ["entrada", "saida", "ajuste", "venda"]:
@@ -544,7 +552,8 @@ def buscar_produtos(
         # Executar query de contagem
         cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         # Validar e montar cláusula ORDER BY
         allowed_sort_columns = [
@@ -717,7 +726,8 @@ def adicionar_venda(
                     f"Preço unitário inválido para produto ID {item_data['produto_id']}."
                 )
 
-            valor_total_bruto += item_data["quantidade"] * item_data["preco_unitario"]
+            valor_total_bruto += item_data["quantidade"] * \
+                item_data["preco_unitario"]
 
         if (
             not isinstance(desconto, (int, float))
@@ -763,7 +773,8 @@ def adicionar_venda(
                 usuario_id=usuario_id,
                 observacao=f"Venda Cód: {codigo_venda}",
                 venda_id=venda_id,  # Passa o venda_id para o movimento
-            )  # registrar_movimento já faz commit interno se bem sucedida, ou rollback.
+                # registrar_movimento já faz commit interno se bem sucedida, ou rollback.
+            )
             # Para aninhar transações, o ideal é que registrar_movimento receba a conexão.
             # Por simplicidade aqui, assumimos que ela funciona atomicamente.
             # Se registrar_movimento falhar, a transação externa aqui fará rollback.

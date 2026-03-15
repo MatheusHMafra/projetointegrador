@@ -56,7 +56,8 @@ def acesso_requerido(niveis_permitidos):
                     session.clear()
                     if request.is_json:
                         return (
-                            jsonify({"error": "Usuário inativo ou não encontrado"}),
+                            jsonify(
+                                {"error": "Usuário inativo ou não encontrado"}),
                             401,
                         )
                     flash("Sua sessão expirou ou seu usuário está inativo.", "danger")
@@ -223,7 +224,8 @@ def listar_usuarios():
 
         # Para renderização HTML, passar a lista de dicionários
         if not usuarios_list:
-            flash("Nenhum usuário encontrado.", "info")  # Usar info para "nenhum dado"
+            # Usar info para "nenhum dado"
+            flash("Nenhum usuário encontrado.", "info")
 
         # Passa a lista de dicionários para o template.
         # O filtro `|tojson` no template cuidará da serialização para o script injetado.
@@ -254,13 +256,15 @@ def novo_usuario():
         nome = data.get("nome")
         email = data.get("email")
         senha = data.get("senha")
-        nivel_acesso = data.get("nivel_acesso", "operador")  # Default para operador
+        # Default para operador
+        nivel_acesso = data.get("nivel_acesso", "operador")
 
         if not all([nome, email, senha]):
             if request.is_json:
                 return jsonify({"error": "Nome, email e senha são obrigatórios"}), 400
             flash("Nome, email e senha são obrigatórios", "danger")
-            return render_template("novo_usuario.html")  # Renderiza o form novamente
+            # Renderiza o form novamente
+            return render_template("novo_usuario.html")
 
         db = get_db()
         userexiste = db.execute(
@@ -270,7 +274,8 @@ def novo_usuario():
         if userexiste:
             db.close()
             if request.is_json:
-                return jsonify({"error": "Email já cadastrado"}), 409  # Conflict
+                # Conflict
+                return jsonify({"error": "Email já cadastrado"}), 409
             flash("Email já cadastrado. Tente um email diferente.", "danger")
             return render_template("novo_usuario.html")
 
@@ -369,7 +374,8 @@ def usuario(id):
             if email_existente:
                 db.close()
                 return (
-                    jsonify({"error": "Este email já está em uso por outro usuário."}),
+                    jsonify(
+                        {"error": "Este email já está em uso por outro usuário."}),
                     409,
                 )
             updates["email"] = data["email"].strip()
@@ -392,7 +398,8 @@ def usuario(id):
         if not updates:
             db.close()
             return (
-                jsonify({"message": "Nenhum dado válido para atualizar fornecido."}),
+                jsonify(
+                    {"message": "Nenhum dado válido para atualizar fornecido."}),
                 400,
             )
 
@@ -454,7 +461,8 @@ def usuario(id):
 def editar_usuario_page(id):
     db = get_db()
     usuario = db.execute(
-        "SELECT id, nome, email, nivel_acesso, ativo FROM usuario WHERE id = ?", (id,)
+        "SELECT id, nome, email, nivel_acesso, ativo FROM usuario WHERE id = ?", (
+            id,)
     ).fetchone()
     db.close()
     if not usuario:
@@ -489,7 +497,8 @@ def alterar_senha():
 
         db = get_db()
         usuario = db.execute(
-            "SELECT id, senha_hash FROM usuario WHERE id = ?", (session["user_id"],)
+            "SELECT id, senha_hash FROM usuario WHERE id = ?", (
+                session["user_id"],)
         ).fetchone()
 
         if not usuario:

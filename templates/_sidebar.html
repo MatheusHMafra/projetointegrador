@@ -20,18 +20,23 @@
                 <span>Produtos</span>
             </a>
         </li>
+
         <li class="{{ 'active' if request.endpoint == 'produtos.categorias_page_html' else '' }}">
             <a href="{{ url_for('produtos.categorias_page_html') }}">
                 <i class="fas fa-tags"></i>
                 <span>Categorias</span>
             </a>
         </li>
-        <li class="{{ 'active' if request.endpoint.startswith('estoque.') and 'page' in request.endpoint else '' }}">
-             <a href="{{ url_for('estoque.movimentacoes_page') }}">
-                <i class="fas fa-exchange-alt"></i>
-                <span>Movimentações</span>
-            </a>
-        </li>
+
+        <!--
+            <li class="{{ 'active' if request.endpoint == 'estoque.movimentacoes_page' else '' }}">
+                <a href="{{ url_for('estoque.movimentacoes_page') }}">
+                    <i class="fas fa-exchange-alt sidebar-icon"></i>
+                    <span>Movimentações</span>
+                </a>
+            </li>
+        -->
+
         <li class="{{ 'active' if request.endpoint == 'fornecedores.fornecedores_page_html' else '' }}">
             <a href="{{ url_for('fornecedores.fornecedores_page_html') }}">
                 <i class="fas fa-truck"></i>
@@ -40,7 +45,8 @@
         </li>
 
         {% if session.user_level == 'admin' %}
-        <li class="{{ 'active' if request.endpoint == 'auth.listar_usuarios' or request.endpoint == 'auth.novo_usuario' else '' }}">
+        <li
+            class="{{ 'active' if request.endpoint == 'auth.listar_usuarios' or request.endpoint == 'auth.novo_usuario' else '' }}">
             <a href="{{ url_for('auth.listar_usuarios') }}">
                 <i class="fas fa-users"></i>
                 <span>Usuários</span>

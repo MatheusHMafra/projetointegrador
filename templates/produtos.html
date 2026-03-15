@@ -66,46 +66,47 @@
                 <!-- Page Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="page-title"><i class="fas fa-boxes me-2"></i>Produtos</h2>
-                    {% if session.nivel_acesso in ['admin', 'gerente'] %}
-                    <a href="{{ url_for('produtos.adicionar_produto') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i> Adicionar Produto
-                    </a>
+                    {% if session.user_level in ['admin', 'gerente'] %}
+                    <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#modalAdicionarProduto">
+                        <i class="fas fa-plus me-1"></i> Produto
+                    </button>
                     {% endif %}
                 </div>
 
-                <!-- Filters -->
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="filtro-categoria" class="form-label">Filtrar por Categoria</label>
-                        <select id="filtro-categoria" class="form-select">
-                            <option value="">Todas as Categorias</option>
-                            <!-- Opções de categoria carregadas via JS -->
+                <!-- Filters and Search -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <select class="form-select" id="filtro-categoria">
+                            <option value="">Carregando categorias...</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="filtro-fornecedor" class="form-label">Filtrar por Fornecedor</label>
-                        <select id="filtro-fornecedor" class="form-select">
-                            <option value="">Todos os Fornecedores</option>
-                            <!-- Opções de fornecedor carregadas via JS -->
+                    <div class="col-md-3">
+                        <select class="form-select" id="filtro-fornecedor">
+                            <option value="">Carregando fornecedores...</option>
                         </select>
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check form-switch">
+                    <div class="col-md-3">
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="filtro-estoque-baixo">
-                            <label class="form-check-label" for="filtro-estoque-baixo">Mostrar apenas estoque
-                                baixo</label>
+                            <label class="form-check-label" for="filtro-estoque-baixo">
+                                Apenas estoque baixo
+                            </label>
                         </div>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="busca-produto" placeholder="Buscar produtos...">
                     </div>
                 </div>
 
-                <!-- Product List Table -->
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Lista de Produtos</h5>
+                <!-- Products Table -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Lista de Produtos</h5>
+                        <span id="total-produtos" class="badge bg-secondary">Total: 0 produtos</span>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table class="table table-hover">
                                 <thead>
                                     <tr>
                                         <th>Código</th>
@@ -116,7 +117,7 @@
                                         <th>Preço Venda</th>
                                         <th>Estoque</th>
                                         <th>Est. Mínimo</th>
-                                        <th class="text-end">Ações</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="produtos-tabela">
@@ -126,14 +127,15 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-                        <span id="total-produtos">Total: 0 produtos</span>
-                        <nav id="paginacao-produtos" aria-label="Paginação de produtos">
-                            <!-- Paginação será inserida aqui via JS -->
-                        </nav>
+
+                        <!-- Pagination -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div></div>
+                            <nav id="paginacao-produtos"></nav>
+                        </div>
                     </div>
                 </div>
+
             </div> <!-- Fim container-fluid -->
 
             <!-- Footer -->

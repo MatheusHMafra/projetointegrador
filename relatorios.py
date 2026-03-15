@@ -92,7 +92,8 @@ def get_product_sales_reports():
         return jsonify(
             {
                 "mais_vendidos": mais_vendidos,
-                "menos_vendidos_com_venda": menos_vendidos,  # Clarifica que são os menos vendidos *que tiveram vendas*
+                # Clarifica que são os menos vendidos *que tiveram vendas*
+                "menos_vendidos_com_venda": menos_vendidos,
                 "nao_vendidos": nao_vendidos,  # Produtos que nunca foram vendidos
             }
         )
@@ -157,10 +158,13 @@ def get_stock_level_reports():
             LEFT JOIN categoria c ON p.categoria_id = c.id
             LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
-        query_count = "SELECT COUNT(p.id) FROM produto p" # Base count, filters will be added
+        query_count = (
+            # Base count, filters will be added
+            "SELECT COUNT(p.id) FROM produto p"
+        )
 
         where_clauses = []
-        params = [] # Parameters for the WHERE clauses
+        params = []  # Parameters for the WHERE clauses
 
         # Build WHERE clause for the main query and count query
         # Need to join with fornecedores if filtering by it, but here we only filter by status_estoque
@@ -168,7 +172,7 @@ def get_stock_level_reports():
         # For simplicity with SQLite, let's fetch all and filter in Python if status_filter is complex,
         # or adjust the CASE statement and WHERE clause carefully.
         # A more direct SQL way for status_filter:
-        
+
         status_condition_sql = ""
         if status_filter:
             if status_filter == "baixo":
@@ -177,27 +181,27 @@ def get_stock_level_reports():
                 status_condition_sql = "p.estoque > p.estoque_minimo AND p.estoque <= (p.estoque_minimo * 2)"
             elif status_filter == "excesso":
                 status_condition_sql = "p.estoque > (p.estoque_minimo * 2)"
-            
-            if status_condition_sql:
-                 where_clauses.append(status_condition_sql)
 
+            if status_condition_sql:
+                where_clauses.append(status_condition_sql)
 
         where_sql = ""
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
-        
+
         # Contagem
         # The count query also needs the WHERE clause
         cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         # Listagem
-        order_by_sql = " ORDER BY p.nome ASC" 
+        order_by_sql = " ORDER BY p.nome ASC"
         limit_offset_sql = " LIMIT ? OFFSET ?"
 
         final_query = query_select + where_sql + order_by_sql + limit_offset_sql
-        
+
         # Add pagination params to the existing params for WHERE clause
         params_paginated = params + [per_page, (page - 1) * per_page]
 

@@ -15,7 +15,8 @@ from auth import login_required, acesso_requerido  # Auth decorators
 
 # Blueprint para fornecedores
 # Adicionado url_prefix para consistência e para evitar colisões de nome de rota
-fornecedores_bp = Blueprint("fornecedores", __name__, url_prefix="/fornecedores")
+fornecedores_bp = Blueprint(
+    "fornecedores", __name__, url_prefix="/fornecedores")
 
 
 # --- Rotas da API ---
@@ -46,10 +47,13 @@ def gerenciar_todos_fornecedores():
 
             page = request.args.get("page", 1, type=int)
             per_page = request.args.get("per_page", 10, type=int)
-            ativo_filter_str = request.args.get("ativo")  # 'true', 'false', ou None
+            ativo_filter_str = request.args.get(
+                "ativo")  # 'true', 'false', ou None
             busca_termo = request.args.get("busca")
-            ordenar_por = request.args.get("ordenar", "f.nome")  # Coluna de ordenação
-            direcao_ordem = request.args.get("direcao", "asc").upper()  # ASC ou DESC
+            ordenar_por = request.args.get(
+                "ordenar", "f.nome")  # Coluna de ordenação
+            direcao_ordem = request.args.get(
+                "direcao", "asc").upper()  # ASC ou DESC
 
             # Validação da ordenação para segurança
             colunas_permitidas_ordem = [
@@ -57,7 +61,8 @@ def gerenciar_todos_fornecedores():
                 "f.cnpj",
                 "f.email",
                 "f.data_cadastro",
-                "total_produtos_agg", # Note: total_produtos_agg is an alias, ensure it works with your SQLite version or adjust
+                # Note: total_produtos_agg is an alias, ensure it works with your SQLite version or adjust
+                "total_produtos_agg",
             ]
             if ordenar_por not in colunas_permitidas_ordem:
                 ordenar_por = "f.nome"  # Padrão seguro
@@ -84,7 +89,8 @@ def gerenciar_todos_fornecedores():
 
             if ativo_filter_str is not None:
                 where_clauses.append("f.ativo = ?")
-                params_where.append(1 if ativo_filter_str.lower() == "true" else 0)
+                params_where.append(
+                    1 if ativo_filter_str.lower() == "true" else 0)
 
             if busca_termo:
                 busca_like = f"%{busca_termo}%"
@@ -101,14 +107,14 @@ def gerenciar_todos_fornecedores():
             cursor.execute(query_count_base + where_sql, params_where)
             total_fornecedores = cursor.fetchone()[0]
             total_pages = (
-                (total_fornecedores + per_page - 1) // per_page if per_page > 0 else 1
+                (total_fornecedores + per_page -
+                 1) // per_page if per_page > 0 else 1
             )
-            
+
             # Adapt order by for alias if necessary
             order_by_expression = ordenar_por
             if ordenar_por == "total_produtos_agg":
-                 order_by_expression = f"({produtos_count_subquery})"
-
+                order_by_expression = f"({produtos_count_subquery})"
 
             order_by_clause = f"ORDER BY {order_by_expression} {direcao_ordem}"
 
@@ -138,7 +144,8 @@ def gerenciar_todos_fornecedores():
             # Verificar permissão para adicionar
             if session.get("user_level") not in ["admin", "gerente"]:
                 return (
-                    jsonify({"error": "Permissão negada para adicionar fornecedor."}),
+                    jsonify(
+                        {"error": "Permissão negada para adicionar fornecedor."}),
                     403,
                 )
 
@@ -160,7 +167,8 @@ def gerenciar_todos_fornecedores():
             # Verificar se CNPJ já existe, se fornecido
             if cnpj:
                 # Corrected table name
-                cursor.execute("SELECT id FROM fornecedores WHERE cnpj = ?", (cnpj,))
+                cursor.execute(
+                    "SELECT id FROM fornecedores WHERE cnpj = ?", (cnpj,))
                 if cursor.fetchone():
                     return (
                         jsonify({"error": "CNPJ já cadastrado."}),
@@ -209,7 +217,8 @@ def gerenciar_todos_fornecedores():
     except Exception as e:
         if conn and request.method == "POST":
             conn.rollback()
-        current_app.logger.error(f"Erro inesperado em fornecedores: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro inesperado em fornecedores: {e}", exc_info=True)
         return jsonify({"error": "Erro inesperado no servidor."}), 500
     finally:
         if conn:
@@ -231,7 +240,8 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
 
         # Buscar fornecedor para todas as operações
         # Corrected table name
-        cursor.execute("SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
+        cursor.execute(
+            "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor_row = cursor.fetchone()
 
         if not fornecedor_row:
@@ -245,13 +255,15 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                 "SELECT COUNT(id) as total_produtos FROM produto WHERE fornecedor_id = ?",
                 (fornecedor_id,),
             )
-            fornecedor_dict["total_produtos"] = cursor.fetchone()["total_produtos"]
+            fornecedor_dict["total_produtos"] = cursor.fetchone()[
+                "total_produtos"]
             return jsonify(fornecedor_dict)
 
         elif request.method == "PUT":
             if session.get("user_level") not in ["admin", "gerente"]:
                 return (
-                    jsonify({"error": "Permissão negada para atualizar fornecedor."}),
+                    jsonify(
+                        {"error": "Permissão negada para atualizar fornecedor."}),
                     403,
                 )
 
@@ -321,7 +333,8 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
 
             # Buscar dados atualizados para retornar
             # Corrected table name
-            cursor.execute("SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
+            cursor.execute(
+                "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
             fornecedor_atualizado = dict(cursor.fetchone())
 
             return jsonify(
@@ -332,9 +345,11 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
             )
 
         elif request.method == "DELETE":
-            if session.get("user_level") not in ["admin"]:  # Apenas admin pode excluir
+            # Apenas admin pode excluir
+            if session.get("user_level") not in ["admin"]:
                 return (
-                    jsonify({"error": "Permissão negada para excluir fornecedor."}),
+                    jsonify(
+                        {"error": "Permissão negada para excluir fornecedor."}),
                     403,
                 )
 
@@ -353,7 +368,8 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                     400,
                 )
             # Corrected table name
-            cursor.execute("DELETE FROM fornecedores WHERE id = ?", (fornecedor_id,))
+            cursor.execute(
+                "DELETE FROM fornecedores WHERE id = ?", (fornecedor_id,))
             conn.commit()
 
             return jsonify({"message": "Fornecedor excluído com sucesso."})
@@ -389,7 +405,9 @@ def listar_produtos_do_fornecedor(fornecedor_id):
 
         # Verificar se o fornecedor existe
         # Corrected table name
-        cursor.execute("SELECT id, nome FROM fornecedores WHERE id = ?", (fornecedor_id,))
+        cursor.execute(
+            "SELECT id, nome FROM fornecedores WHERE id = ?", (fornecedor_id,)
+        )
         fornecedor_info = cursor.fetchone()
         if not fornecedor_info:
             return jsonify({"error": "Fornecedor não encontrado."}), 404
@@ -404,7 +422,8 @@ def listar_produtos_do_fornecedor(fornecedor_id):
             "SELECT COUNT(id) FROM produto WHERE fornecedor_id = ?", (fornecedor_id,)
         )
         total_produtos = cursor.fetchone()[0]
-        total_pages = (total_produtos + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_produtos + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         # Buscar produtos paginados com nome da categoria
         sql_produtos = """
@@ -462,7 +481,8 @@ def alternar_status_fornecedor(fornecedor_id):
         conn = get_db()
         cursor = conn.cursor()
         # Corrected table name
-        cursor.execute("SELECT ativo FROM fornecedores WHERE id = ?", (fornecedor_id,))
+        cursor.execute(
+            "SELECT ativo FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor_status = cursor.fetchone()
         if not fornecedor_status:
             return jsonify({"error": "Fornecedor não encontrado."}), 404
@@ -522,7 +542,7 @@ def adicionar_fornecedor_page_html():
     """Renderiza a página/formulário para adicionar um novo fornecedor."""
     # Esta rota pode não ser necessária se a adição for feita via modal na página principal.
     return render_template(
-        "adicionar_fornecedor.html" # Ensure this template exists if used, or remove route
+        "adicionar_fornecedor.html"  # Ensure this template exists if used, or remove route
     )
 
 
@@ -538,13 +558,17 @@ def editar_fornecedor_page_html(fornecedor_id):
         conn = get_db()
         cursor = conn.cursor()
         # Corrected table name
-        cursor.execute("SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
+        cursor.execute(
+            "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor = cursor.fetchone()
         if not fornecedor:
             flash("Fornecedor não encontrado.", "danger")
-            return redirect(url_for("fornecedores.fornecedores_page_html")) # Corrected redirect
+            return redirect(
+                url_for("fornecedores.fornecedores_page_html")
+            )  # Corrected redirect
         return render_template(
-            "editar_fornecedor.html", fornecedor=dict(fornecedor) # Ensure this template exists if used
+            "editar_fornecedor.html",
+            fornecedor=dict(fornecedor),  # Ensure this template exists if used
         )
     except Exception as e:
         flash("Erro ao carregar dados do fornecedor para edição.", "danger")
@@ -552,7 +576,9 @@ def editar_fornecedor_page_html(fornecedor_id):
             f"Erro ao carregar fornecedor {fornecedor_id} para edição: {e}",
             exc_info=True,
         )
-        return redirect(url_for("fornecedores.fornecedores_page_html")) # Corrected redirect
+        return redirect(
+            url_for("fornecedores.fornecedores_page_html")
+        )  # Corrected redirect
     finally:
         if conn:
             conn.close()

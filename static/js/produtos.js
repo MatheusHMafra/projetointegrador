@@ -572,38 +572,35 @@ function submeterFormularioEditarProduto() {
  * @param {string} nomeProduto - Nome do produto.
  */
 function confirmarExclusaoProdutoModal(produtoId, nomeProduto) {
-    document.getElementById('nomeProdutoExcluir').textContent = nomeProduto;
+    document.getElementById('excluirProdutoNome').textContent = nomeProduto;
     document.getElementById('btnConfirmarExclusao').dataset.produtoId = produtoId;
-    
-    const modalEl = document.getElementById('modalConfirmarExclusao');
-    if (modalEl) new bootstrap.Modal(modalEl).show();
+
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
+    modal.show();
 }
 
 /**
- * Confirma e executa a exclusão do produto.
+ * Executa a exclusão do produto após confirmação.
  * @param {number} produtoId - ID do produto a ser excluído.
  */
 function executarExclusaoProduto(produtoId) {
-    if (!produtoId) return;
     if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) {
         showNotification('Erro de Configuração API ao excluir produto.', 'danger');
         return;
     }
+    
     toggleLoading(true);
-    axios.delete(API_ROUTES.PRODUTO_DETALHES(produtoId)) // DELETE /produtos/{id}
+    axios.delete(API_ROUTES.PRODUTO_DETALHES(produtoId))
         .then(response => {
             showNotification(response.data.message || 'Produto excluído com sucesso!', 'success');
-            const modalEl = document.getElementById('modalConfirmarExclusao');
-            if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
-            carregarProdutos(); // Recarregar a lista
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
+            modal.hide();
+            carregarProdutos(); // Recarregar lista
         })
         .catch(error => {
             console.error('Erro ao excluir produto:', error.response ? error.response.data : error.message);
-            const msg = error.response?.data?.error || 'Erro ao excluir produto. Verifique se há estoque ou vendas associadas.';
+            const msg = error.response?.data?.error || 'Erro desconhecido ao excluir produto.';
             showNotification(msg, 'danger');
-            // Esconder modal mesmo com erro, pois a ação foi tentada.
-            const modalEl = document.getElementById('modalConfirmarExclusao');
-            if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
         })
         .finally(() => {
             toggleLoading(false);

@@ -507,6 +507,13 @@ function configurarFormulariosDashboard() {
           // codigo: document.getElementById('codigoProdutoModal').value || undefined,
         };
 
+        // Validação básica
+        if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco) {
+            showNotification('Nome, Categoria e Preço de Venda são obrigatórios.', 'warning');
+            toggleLoading(false);
+            return;
+        }
+
         axios
           .post(API_ROUTES.PRODUTOS_LISTAR, dadosProduto)
           .then((response) => {

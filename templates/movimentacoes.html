@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+
+<head>
+    {% include '_head.html' %}
+    {% block title %}Movimentações de Estoque - GEP{% endblock %}
+    {% block head_extra %}
+    {% endblock %}
+</head>
+
+{% block content %}
+<div class="main-content">
+    {% include '_sidebar.html' %}
+
+    <div class="card">
+        <div class="card-header">
+            Filtros
+        </div>
+        <div class="card-body">
+            <form id="filtros-movimentacoes-form" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="filtro-produto" class="form-label">Produto (ID ou Nome)</label>
+                    <input type="text" class="form-control form-control-sm" id="filtro-produto" name="produto_id_ou_nome" placeholder="Digite ID ou nome do produto">
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro-tipo" class="form-label">Tipo</label>
+                    <select id="filtro-tipo" name="tipo" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="entrada">Entrada</option>
+                        <option value="saida">Saída</option>
+                        <option value="ajuste">Ajuste</option>
+                        <option value="venda">Venda</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro-data-inicio" class="form-label">Data Início</label>
+                    <input type="date" class="form-control form-control-sm" id="filtro-data-inicio" name="data_inicio">
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro-data-fim" class="form-label">Data Fim</label>
+                    <input type="date" class="form-control form-control-sm" id="filtro-data-fim" name="data_fim">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary btn-sm me-2">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="limpar-filtros">
+                        <i class="fas fa-times me-1"></i>Limpar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Movimentações Registradas</span>
+                <div class="spinner-border spinner-border-sm text-primary ms-2" role="status" id="loading-spinner-mov" style="display: none;">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Produto</th>
+                            <th>Tipo</th>
+                            <th>Qtd.</th>
+                            <th>Est. Anterior</th>
+                            <th>Est. Atual</th>
+                            <th>Data</th>
+                            <th>Usuário</th>
+                            <th>Observação</th>
+                            <th>Venda Cód.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="movimentacoes-tabela-corpo">
+                        <!-- Linhas da tabela serão inseridas aqui pelo JavaScript -->
+                        <tr>
+                            <td colspan="10" class="text-center" id="movimentacoes-placeholder">Nenhuma movimentação encontrada ou carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Paginação de movimentações" id="paginacao-movimentacoes-nav" class="mt-3" style="display: none;">
+                <ul class="pagination pagination-sm justify-content-center" id="paginacao-movimentacoes-lista">
+                    <!-- Itens de paginação serão inseridos aqui -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/movimentacoes.js') }}"></script>
+{% endblock %}

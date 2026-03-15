@@ -1,5 +1,6 @@
 import sqlite3
 from database_utils import get_db
+
 # As importações de werkzeug, datetime e uuid ainda serão necessárias
 # para a lógica da sua aplicação, mas não diretamente para criar as tabelas.
 
@@ -133,15 +134,16 @@ CREATE TABLE IF NOT EXISTS item_venda (
 );
 """
 
+
 # Função para inicializar o banco de dados com sqlite3
 def init_db_sqlite():
     """
     Conecta ao banco de dados e cria as tabelas se elas não existirem.
     """
-    db_conn = None # Inicializa a variável de conexão
+    db_conn = None  # Inicializa a variável de conexão
     try:
         # 1. Obter a conexão com o banco de dados
-        db_conn = get_db() # Sua função que retorna a conexão sqlite3
+        db_conn = get_db()  # Sua função que retorna a conexão sqlite3
         cursor = db_conn.cursor()
 
         # 2. Habilitar suporte a chaves estrangeiras (importante no SQLite)
@@ -153,13 +155,19 @@ def init_db_sqlite():
         print("Criando tabela categoria...")
         cursor.execute(SQL_CREATE_CATEGORIA)
         print("Criando tabela fornecedor...")
-        cursor.execute(SQL_CREATE_FORNECEDOR) # Usa a constante que agora cria 'fornecedores'
+        cursor.execute(
+            SQL_CREATE_FORNECEDOR
+        )  # Usa a constante que agora cria 'fornecedores'
         print("Criando tabela produto...")
-        cursor.execute(SQL_CREATE_PRODUTO) # Usa a constante que agora referencia 'fornecedores'
+        cursor.execute(
+            SQL_CREATE_PRODUTO
+        )  # Usa a constante que agora referencia 'fornecedores'
         print("Criando índice em produto.codigo...")
         cursor.execute(SQL_CREATE_INDEX_PRODUTO_CODIGO)
         print("Criando tabela estoque_movimentacao...")
-        cursor.execute(SQL_CREATE_ESTOQUE_MOVIMENTACAO) # Usa a constante com o nome corrigido
+        cursor.execute(
+            SQL_CREATE_ESTOQUE_MOVIMENTACAO
+        )  # Usa a constante com o nome corrigido
         print("Criando tabela grupo_produto...")
         cursor.execute(SQL_CREATE_GRUPO_PRODUTO)
         print("Criando tabela produtos_grupos...")
@@ -185,24 +193,3 @@ def init_db_sqlite():
         if db_conn:
             db_conn.close()
             print("Conexão com o banco de dados fechada.")
-
-# Exemplo de como chamar a função (você integraria isso no seu app)
-if __name__ == '__main__':
-    # Esta parte é apenas para demonstração.
-    # Você chamaria init_db_sqlite() no contexto apropriado da sua aplicação.
-
-    # Exemplo de como a sua database_utils.py poderia ser para testes:
-    # ===============================================
-    # database_utils.py (Exemplo Simples)
-    # import sqlite3
-    #
-    # DATABASE = 'seu_banco_de_dados.db'
-    #
-    # def get_db():
-    #     conn = sqlite3.connect(DATABASE)
-    #     conn.row_factory = sqlite3.Row # Opcional: retorna linhas como dicionários
-    #     return conn
-    # ===============================================
-
-    print("Inicializando o schema do banco de dados usando sqlite3...")
-    init_db_sqlite()
