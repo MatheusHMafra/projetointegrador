@@ -4,25 +4,23 @@ from database_utils import (
     get_db,
     registrar_movimento,
     obter_dados_movimentacao_grafico,
-)  # Renomeado obter_dados_movimentacao para obter_dados_movimentacao_grafico
+)
 from auth import (
     login_required,
     acesso_requerido,
-)  # Funções de autenticação e autorização
+)
 from datetime import datetime
-import uuid  # Para gerar códigos únicos de venda
-import sqlite3  # Para tratar exceções específicas do SQLite
+import sqlite3
 
-# Criar Blueprint para estoque e vendas
 estoque_bp = Blueprint(
     "estoque", __name__, url_prefix="/estoque"
-)  # Adicionado url_prefix
+)
 
 
 # API para entrada de produtos no estoque
 @estoque_bp.route("/entrada", methods=["POST"])
-@login_required  # Requer que o usuário esteja logado
-@acesso_requerido(["admin", "gerente"])  # Apenas admin ou gerente podem registrar entrada
+@login_required
+@acesso_requerido(["admin", "gerente"])
 def entrada_produto():
     """Registra uma entrada de produto no estoque."""
     data = request.json
@@ -89,7 +87,8 @@ def entrada_produto():
 # API para saída de produtos do estoque
 @estoque_bp.route("/saida", methods=["POST"])
 @login_required
-@acesso_requerido(["admin", "gerente"])  # Apenas admin ou gerente podem registrar saída
+# Apenas admin ou gerente podem registrar saída
+@acesso_requerido(["admin", "gerente"])
 def saida_produto():
     """Registra uma saída de produto do estoque."""
     data = request.json
@@ -183,12 +182,12 @@ def ajuste_estoque():
             usuario_id=session.get("user_id"),
             observacao=observacao,
         )
-        
+
         # Avisar se estoque foi setado para zero
         aviso = None
         if novo_estoque == 0:
             aviso = "Atenção: estoque foi ajustado para zero."
-        
+
         return (
             jsonify(
                 {
@@ -567,7 +566,7 @@ def detalhes_venda(venda_id):
         try:
             data_dt = datetime.fromisoformat(str(venda["data_venda"]))
             venda["data_venda_fmt"] = data_dt.strftime("%d/%m/%Y %H:%M:%S")
-        except:
+        except (ValueError, TypeError):
             venda["data_venda_fmt"] = str(venda["data_venda"])
 
         # Buscar itens da venda

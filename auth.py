@@ -161,9 +161,6 @@ def login():
             flash("Usuário não encontrado", "danger")
             return render_template("login.html")
 
-        # ! Verificar se a senha está correta USANDO check_password_hash
-        # Assumindo que a coluna com o hash da senha se chama 'senha_hash'
-        # Corrigido: Acessar 'senha_hash' usando notação de dicionário
         if not check_password_hash(usuario["senha_hash"], senha):
             # Fechar a conexão antes de retornar
             db.close()
@@ -219,7 +216,6 @@ def login():
                 {
                     "message": "Login realizado com sucesso",
                     "user": {
-                        # Corrigido: Acessando colunas usando notação de dicionário
                         "id": usuario["id"],
                         "nome": usuario["nome"],
                         "email": usuario["email"],
@@ -342,7 +338,7 @@ def novo_usuario():
             manager_id = None
             if session.get("user_level") == "gerente":
                 manager_id = session.get("user_id")
-            
+
             cursor = db.execute(
                 "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo, manager_id) VALUES (?, ?, ?, ?, ?, ?)",
                 (
@@ -398,7 +394,7 @@ def novo_usuario():
 @login_required
 def usuario(id):
     db = get_db()
-    
+
     # Buscar o usuário alvo INCLUINDO manager_id para validar hierarquia
     usuario_row = db.execute(
         "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso, manager_id FROM usuario WHERE id = ?",
@@ -411,18 +407,18 @@ def usuario(id):
             return jsonify({"error": "Usuário não encontrado"}), 404
         flash("Usuário não encontrado", "danger")
         return redirect(url_for("auth.listar_usuarios"))
-    
+
     # Validar acesso: Admin pode fazer tudo, Gerente pode editar apenas seus subordinados
     user_level = session.get("user_level")
     user_id = session.get("user_id")
-    
+
     if user_level not in ["admin", "gerente"]:
         db.close()
         if request.is_json:
             return jsonify({"error": "Acesso não autorizado"}), 403
         flash("Você não tem permissão para acessar este recurso.", "danger")
         return redirect(url_for("auth.listar_usuarios"))
-    
+
     # Se é gerente, validar se é seu subordinado
     if user_level == "gerente" and usuario_row["manager_id"] != user_id:
         db.close()
@@ -443,7 +439,6 @@ def usuario(id):
             return jsonify({"error": "Dados não fornecidos"}), 400
 
         updates = {}
-        params_update = []
 
         if "nome" in data and data["nome"].strip():
             updates["nome"] = data["nome"].strip()

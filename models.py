@@ -1,9 +1,6 @@
 import sqlite3
 from database_utils import get_db
 
-# As importações de werkzeug, datetime e uuid ainda serão necessárias
-# para a lógica da sua aplicação, mas não diretamente para criar as tabelas.
-
 # Instruções SQL para criar as tabelas
 SQL_CREATE_USUARIO = """
 CREATE TABLE IF NOT EXISTS usuario (
@@ -74,6 +71,7 @@ CREATE TABLE IF NOT EXISTS estoque_movimentacao (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     produto_id INTEGER NOT NULL,
     usuario_id INTEGER,
+    venda_id INTEGER,
     tipo TEXT NOT NULL, -- 'entrada', 'saida', 'ajuste', 'venda'
     quantidade INTEGER NOT NULL,
     estoque_anterior INTEGER NOT NULL,
@@ -81,7 +79,8 @@ CREATE TABLE IF NOT EXISTS estoque_movimentacao (
     observacao TEXT,
     data_movimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (produto_id) REFERENCES produto (id),
-    FOREIGN KEY (usuario_id) REFERENCES usuario (id)
+    FOREIGN KEY (usuario_id) REFERENCES usuario (id),
+    FOREIGN KEY (venda_id) REFERENCES venda (id)
 );
 """
 
@@ -182,6 +181,16 @@ def init_db_sqlite():
         cursor.execute(
             SQL_CREATE_ESTOQUE_MOVIMENTACAO
         )  # Usa a constante com o nome corrigido
+
+        # Migração leve para bases antigas sem vínculo opcional com venda.
+        cursor.execute("PRAGMA table_info(estoque_movimentacao)")
+        estoque_mov_cols = [row[1] for row in cursor.fetchall()]
+        if "venda_id" not in estoque_mov_cols:
+            print("Adicionando coluna venda_id em estoque_movimentacao...")
+            cursor.execute(
+                "ALTER TABLE estoque_movimentacao ADD COLUMN venda_id INTEGER"
+            )
+
         print("Criando tabela grupo_produto...")
         cursor.execute(SQL_CREATE_GRUPO_PRODUTO)
         print("Criando tabela produtos_grupos...")

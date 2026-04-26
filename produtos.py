@@ -1,32 +1,29 @@
 import sqlite3
 import os
-import uuid  # Para gerar códigos de produto e nomes de arquivo únicos
-import datetime  # Para manipulação de datas
+import uuid
+import datetime
 from flask import (
     Blueprint,
     request,
     jsonify,
     render_template,
     session,
-    flash,
-    redirect,
-    url_for,
     current_app,
 )
 from database_utils import (
     get_db,
     registrar_movimento,
     buscar_produtos,
-)  # Funções de utilidade do banco
+)
 from auth import (
     login_required,
     acesso_requerido,
-)  # Decoradores de autenticação/autorização
-from werkzeug.utils import secure_filename  # Para segurança de nomes de arquivo
+)
+from werkzeug.utils import secure_filename
 
 # Configuração para uploads de imagens
 UPLOAD_FOLDER = os.path.join(
-    "static", "uploads", "produtos")  # Caminho mais robusto
+    "static", "uploads", "produtos")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
 # Criar Blueprint para produtos
@@ -1008,7 +1005,8 @@ def relatorio_produtos_mais_vendidos():
             cursor.execute(fallback_query, params)
             produtos_rows = cursor.fetchall()
 
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -1057,7 +1055,8 @@ def relatorio_produtos_menos_vendidos():
         count_query = "SELECT COUNT(id) FROM produto"
         cursor.execute(count_query)
         total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         try:
             query = """

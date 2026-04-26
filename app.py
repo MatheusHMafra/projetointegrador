@@ -54,44 +54,37 @@ def create_app():
     # Verificação de login antes de cada requisição
     @app.before_request
     def require_login():
-        # Permitir acesso a rotas de autenticação, arquivos estáticos e inicialização de dados
         allowed_endpoints = ["auth.login", "static", "init_data"]
         if request.endpoint and (
             request.endpoint.startswith("auth.")
             or request.endpoint in allowed_endpoints
             or request.endpoint == "static"
         ):
-            return  # Permitir acesso
+            return
 
         if "user_id" not in session:
-            # Se for uma requisição JSON, retornar erro (opcional, mas bom para APIs)
             if request.is_json:
                 return jsonify({"error": "Autenticação necessária"}), 401
-            # Redirecionar para a página de login para requisições normais
             return redirect(url_for("auth.login"))
 
     # Rota principal
     @app.route("/")
     def index():
-        # A verificação before_request cuidará do redirecionamento se não estiver logado
         return redirect(url_for("dashboard"))
 
     # Dashboard
     @app.route("/dashboard")
-    # @login_required # Decorator não é mais estritamente necessário aqui devido ao before_request
     def dashboard():
         now = datetime.now()
         return render_template("dashboard.html", now=now)
 
     # Dados do dashboard
     @app.route("/api/dashboard/stats")
-    # @login_required # Decorator não é mais estritamente necessário aqui devido ao before_request
     def dashboard_stats():
         with app.app_context():
             estatisticas = obter_estatisticas()
         return jsonify(estatisticas)
 
-    # Inicialização de dados (para desenvolvimento) - Já permitido pelo before_request
     @app.route("/api/init-data", methods=["GET"])
     def init_data():
         sucesso = inicializar_dados_exemplo()

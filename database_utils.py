@@ -251,7 +251,8 @@ def obter_estatisticas():
         resultado = {}
 
         # Total de produtos
-        cursor.execute("SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 1")
+        cursor.execute(
+            "SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 1")
         resultado["total_produtos"] = cursor.fetchone()[0]
 
         # Total de categorias
@@ -275,11 +276,13 @@ def obter_estatisticas():
         resultado["produtos_estoque_baixo"] = cursor.fetchone()[0]
 
         # Produtos sem estoque
-        cursor.execute("SELECT COUNT(id) FROM produto WHERE estoque = 0 AND COALESCE(ativo, 1) = 1")
+        cursor.execute(
+            "SELECT COUNT(id) FROM produto WHERE estoque = 0 AND COALESCE(ativo, 1) = 1")
         resultado["produtos_sem_estoque"] = cursor.fetchone()[0]
 
         # Produtos inativos
-        cursor.execute("SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 0")
+        cursor.execute(
+            "SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 0")
         resultado["produtos_inativos"] = cursor.fetchone()[0]
 
         # Vendas nos últimos 30 dias (contagem e valor)
@@ -316,7 +319,7 @@ def obter_estatisticas():
                     mov_dict["data_movimento"])
                 mov_dict["data_movimento_fmt"] = dt_obj.strftime(
                     "%d/%m/%y %H:%M")
-            except:
+            except Exception:
                 # fallback
                 mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]
             resultado["movimentacoes_recentes"].append(mov_dict)
@@ -775,19 +778,14 @@ def adicionar_venda(
             subtotal = quantidade * preco_unitario
 
             # Registrar movimento de estoque (saída por venda)
-            # A função registrar_movimento já lida com a verificação de estoque
-            mov_info = registrar_movimento(
+            registrar_movimento(
                 produto_id=produto_id,
                 tipo="venda",
                 quantidade=quantidade,
                 usuario_id=usuario_id,
                 observacao=f"Venda Cód: {codigo_venda}",
-                venda_id=venda_id,  # Passa o venda_id para o movimento
-                # registrar_movimento já faz commit interno se bem sucedida, ou rollback.
+                venda_id=venda_id,
             )
-            # Para aninhar transações, o ideal é que registrar_movimento receba a conexão.
-            # Por simplicidade aqui, assumimos que ela funciona atomicamente.
-            # Se registrar_movimento falhar, a transação externa aqui fará rollback.
 
             cursor.execute(
                 """

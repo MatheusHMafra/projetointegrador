@@ -4,7 +4,6 @@ from flask import (
     jsonify,
     request,
     current_app,
-    session,
 )  # Added session and current_app
 from database_utils import get_db  # Utility to get DB connection
 from auth import login_required, acesso_requerido  # Auth decorators
@@ -159,19 +158,11 @@ def get_stock_level_reports():
             LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
         query_count = (
-            # Base count, filters will be added
             "SELECT COUNT(p.id) FROM produto p"
         )
 
         where_clauses = []
-        params = []  # Parameters for the WHERE clauses
-
-        # Build WHERE clause for the main query and count query
-        # Need to join with fornecedores if filtering by it, but here we only filter by status_estoque
-        # The status_estoque is a calculated field, so we might need a subquery or filter after fetching
-        # For simplicity with SQLite, let's fetch all and filter in Python if status_filter is complex,
-        # or adjust the CASE statement and WHERE clause carefully.
-        # A more direct SQL way for status_filter:
+        params = []
 
         status_condition_sql = ""
         if status_filter:
