@@ -65,12 +65,23 @@ function renderizarTabelaCategorias(categorias) {
                 <td>${categoria.descricao || '-'}</td>
                 <td>${categoria.total_produtos !== undefined ? categoria.total_produtos : 'N/A'}</td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-primary me-1" onclick="abrirModalEditarCategoria(${categoria.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="confirmarExclusaoCategoriaModal(${categoria.id}, '${categoria.nome.replace(/'/g, "\\'")}')" title="Excluir" ${categoria.total_produtos > 0 ? 'disabled' : ''}>
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <button class="dropdown-item" type="button" onclick="abrirModalEditarCategoria(${categoria.id})">
+                                    <i class="fas fa-edit me-2"></i>Editar
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item text-danger" type="button" onclick="confirmarExclusaoCategoriaModal(${categoria.id}, '${categoria.nome.replace(/'/g, "\\'")}')" ${categoria.total_produtos > 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-trash-alt me-2"></i>Excluir
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </td>
             </tr>
         `;

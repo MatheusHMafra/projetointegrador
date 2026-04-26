@@ -12,9 +12,11 @@ CREATE TABLE IF NOT EXISTS usuario (
     email TEXT UNIQUE NOT NULL,
     senha_hash TEXT NOT NULL,
     nivel_acesso TEXT NOT NULL, -- 'admin', 'gerente', 'operador'
+    manager_id INTEGER,          -- ID do gerente que criou este usuário (para hierarquia)
     ativo INTEGER DEFAULT 1,    -- 1 para True, 0 para False
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ultimo_acesso TIMESTAMP
+    ultimo_acesso TIMESTAMP,
+    FOREIGN KEY (manager_id) REFERENCES usuario (id)
 );
 """
 
@@ -54,6 +56,7 @@ CREATE TABLE IF NOT EXISTS produto (
     preco_compra REAL,
     estoque INTEGER NOT NULL DEFAULT 0,
     estoque_minimo INTEGER DEFAULT 5,
+    ativo INTEGER DEFAULT 1,
     imagem_url TEXT,
     fornecedor_id INTEGER,
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -162,6 +165,17 @@ def init_db_sqlite():
         cursor.execute(
             SQL_CREATE_PRODUTO
         )  # Usa a constante que agora referencia 'fornecedores'
+
+        # Migração leve para bases antigas sem coluna de status em produto.
+        cursor.execute("PRAGMA table_info(produto)")
+        produto_cols = [row[1] for row in cursor.fetchall()]
+        if "ativo" not in produto_cols:
+            print("Adicionando coluna ativo em produto...")
+            cursor.execute(
+                "ALTER TABLE produto ADD COLUMN ativo INTEGER DEFAULT 1"
+            )
+            cursor.execute("UPDATE produto SET ativo = 1 WHERE ativo IS NULL")
+
         print("Criando índice em produto.codigo...")
         cursor.execute(SQL_CREATE_INDEX_PRODUTO_CODIGO)
         print("Criando tabela estoque_movimentacao...")

@@ -81,6 +81,49 @@ def acesso_requerido(niveis_permitidos):
     return decorator
 
 
+# Função para verificar acesso com hierarquia (gerente só pode acessar usuários abaixo dele)
+def acesso_requerido_com_hierarquia(niveis_permitidos):
+    """Decorador que verifica nível de acesso + hierarquia.
+    - Admin: pode acessar tudo
+    - Gerente: pode acessar apenas usuários com manager_id igual ao seu user_id
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user_id" not in session:
+                if request.is_json:
+                    return jsonify({"error": "Autenticação necessária"}), 401
+                return redirect(url_for("auth.login", next=request.url))
+
+            if "user_level" not in session:
+                db = get_db()
+                usuario = db.execute(
+                    "SELECT * FROM usuario WHERE id = ?", (session["user_id"],)
+                ).fetchone()
+                db.close()
+
+                if not usuario or not usuario["ativo"]:
+                    session.clear()
+                    if request.is_json:
+                        return jsonify({"error": "Usuário inativo ou não encontrado"}), 401
+                    flash("Sua sessão expirou ou seu usuário está inativo.", "danger")
+                    return redirect(url_for("auth.login"))
+
+                session["user_level"] = usuario["nivel_acesso"]
+
+            if session["user_level"] not in niveis_permitidos:
+                if request.is_json:
+                    return jsonify({"error": "Acesso não autorizado"}), 403
+                flash("Você não tem permissão para acessar este recurso.", "danger")
+                return redirect(url_for("index"))
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+
+    return decorator
+
+
 # Rota de login
 
 
@@ -211,6 +254,14 @@ def logout():
 def listar_usuarios():
     db = None
     try:
+        accepts = request.accept_mimetypes
+        wants_json = request.is_json or request.headers.get(
+            "X-Requested-With"
+        ) == "XMLHttpRequest" or (
+            accepts["application/json"] >= accepts["text/html"]
+            and accepts["application/json"] > 0
+        )
+
         db = get_db()
         usuarios_raw = db.execute(
             "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso FROM usuario ORDER BY nome"
@@ -219,7 +270,7 @@ def listar_usuarios():
         # CORREÇÃO PRINCIPAL: Sempre converter para lista de dicionários
         usuarios_list = [dict(u) for u in usuarios_raw] if usuarios_raw else []
 
-        if request.is_json:
+        if wants_json:
             return jsonify({"usuarios": usuarios_list})
 
         # Para renderização HTML, passar a lista de dicionários
@@ -234,7 +285,12 @@ def listar_usuarios():
         # app.logger.error(f"Erro ao listar usuários: {e}", exc_info=True)
         print(f"Erro ao listar usuários: {e}")
         flash_msg = "Erro ao carregar a lista de usuários."
-        if request.is_json:
+        accepts = request.accept_mimetypes
+        wants_json = request.is_json or (
+            accepts["application/json"] >= accepts["text/html"]
+            and accepts["application/json"] > 0
+        )
+        if wants_json:
             return jsonify({"error": flash_msg, "usuarios": []}), 500
         flash(flash_msg, "danger")
         return render_template(
@@ -282,15 +338,21 @@ def novo_usuario():
         senha_hash = generate_password_hash(senha)
 
         try:
+            # Se um gerente está criando um novo usuário, salvar seu ID como manager_id
+            manager_id = None
+            if session.get("user_level") == "gerente":
+                manager_id = session.get("user_id")
+            
             cursor = db.execute(
-                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo, manager_id) VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     nome,
                     email,
                     senha_hash,
                     nivel_acesso,
                     1,
-                ),  # Novo usuário ativo por padrão
+                    manager_id,
+                ),  # Novo usuário ativo por padrão, com manager_id se criado por gerente
             )
             db.commit()
             novo_usuario_id = cursor.lastrowid
@@ -334,11 +396,12 @@ def novo_usuario():
 
 @auth_bp.route("/usuarios/<int:id>", methods=["GET", "PUT", "DELETE"])
 @login_required
-@acesso_requerido(["admin"])
 def usuario(id):
     db = get_db()
+    
+    # Buscar o usuário alvo INCLUINDO manager_id para validar hierarquia
     usuario_row = db.execute(
-        "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso FROM usuario WHERE id = ?",
+        "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso, manager_id FROM usuario WHERE id = ?",
         (id,),
     ).fetchone()
 
@@ -347,6 +410,25 @@ def usuario(id):
         if request.is_json:
             return jsonify({"error": "Usuário não encontrado"}), 404
         flash("Usuário não encontrado", "danger")
+        return redirect(url_for("auth.listar_usuarios"))
+    
+    # Validar acesso: Admin pode fazer tudo, Gerente pode editar apenas seus subordinados
+    user_level = session.get("user_level")
+    user_id = session.get("user_id")
+    
+    if user_level not in ["admin", "gerente"]:
+        db.close()
+        if request.is_json:
+            return jsonify({"error": "Acesso não autorizado"}), 403
+        flash("Você não tem permissão para acessar este recurso.", "danger")
+        return redirect(url_for("auth.listar_usuarios"))
+    
+    # Se é gerente, validar se é seu subordinado
+    if user_level == "gerente" and usuario_row["manager_id"] != user_id:
+        db.close()
+        if request.is_json:
+            return jsonify({"error": "Você só pode editar seus próprios subordinados."}), 403
+        flash("Você só pode editar seus próprios subordinados.", "danger")
         return redirect(url_for("auth.listar_usuarios"))
 
     if request.method == "GET":

@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-theme="dark"> <!-- Mantém data-theme aqui -->
+<html lang="pt-br">
 
 <head>
+    {% set page_title = 'Dashboard - GEP' %}
     {% include '_head.html' %}
-    {% block title %}Dashboard - GEP{% endblock %}
-    {% block head_extra %}
     <!-- Chart.js (Específico do Dashboard) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    {% endblock %}
 </head>
 
 <body>
@@ -88,6 +86,7 @@
                                 <div class="stats-data">
                                     <h3 id="total-produtos">--</h3>
                                     <p>Total de Produtos</p>
+                                    <small class="d-block text-light">Inativos: <span id="produtos-inativos">--</span></small>
                                 </div>
                             </div>
                             <div class="stats-footer">
@@ -316,7 +315,7 @@
                     <div class="container-fluid">
                         <div class="row">
                             <div class="col-md-6">
-                                <p class="mb-0">GEP &copy; 2025</p>
+                                <p class="mb-0">GEP &copy; 2026</p>
                             </div>
                             <div class="col-md-6 text-end">
                                 <p class="mb-0">v1.0.0</p>
@@ -403,12 +402,28 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Formulário de Entrada Aqui -->
-                    <p>Formulário para registrar entrada de produto...</p>
+                    <form id="formEntradaProduto">
+                        <div class="mb-3">
+                            <label for="produtoEntrada" class="form-label">Produto <span class="text-danger">*</span></label>
+                            <select id="produtoEntrada" class="form-select" required>
+                                <option value="">Selecione um produto...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="qtdEntrada" class="form-label">Quantidade <span class="text-danger">*</span></label>
+                            <input type="number" id="qtdEntrada" class="form-control" min="1" placeholder="Ex: 10" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="motivoEntrada" class="form-label">Motivo (opcional)</label>
+                            <input type="text" id="motivoEntrada" class="form-control" placeholder="Ex: Reposição, Devolução de cliente...">
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-success">Registrar Entrada</button>
+                    <button type="button" id="btnSubmeterEntrada" class="btn btn-success">Registrar Entrada</button>
                 </div>
             </div>
         </div>
@@ -423,12 +438,28 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Formulário de Saída Aqui -->
-                    <p>Formulário para registrar saída de produto...</p>
+                    <form id="formSaidaProduto">
+                        <div class="mb-3">
+                            <label for="produtoSaida" class="form-label">Produto <span class="text-danger">*</span></label>
+                            <select id="produtoSaida" class="form-select" required>
+                                <option value="">Selecione um produto...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="qtdSaida" class="form-label">Quantidade <span class="text-danger">*</span></label>
+                            <input type="number" id="qtdSaida" class="form-control" min="1" placeholder="Ex: 5" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="motivoSaida" class="form-label">Motivo (opcional)</label>
+                            <input type="text" id="motivoSaida" class="form-control" placeholder="Ex: Venda, Dano, Roubo...">
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-danger">Registrar Saída</button>
+                    <button type="button" id="btnSubmeterSaida" class="btn btn-danger">Registrar Saída</button>
                 </div>
             </div>
         </div>

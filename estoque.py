@@ -22,6 +22,7 @@ estoque_bp = Blueprint(
 # API para entrada de produtos no estoque
 @estoque_bp.route("/entrada", methods=["POST"])
 @login_required  # Requer que o usuário esteja logado
+@acesso_requerido(["admin", "gerente"])  # Apenas admin ou gerente podem registrar entrada
 def entrada_produto():
     """Registra uma entrada de produto no estoque."""
     data = request.json
@@ -88,6 +89,7 @@ def entrada_produto():
 # API para saída de produtos do estoque
 @estoque_bp.route("/saida", methods=["POST"])
 @login_required
+@acesso_requerido(["admin", "gerente"])  # Apenas admin ou gerente podem registrar saída
 def saida_produto():
     """Registra uma saída de produto do estoque."""
     data = request.json
@@ -181,11 +183,18 @@ def ajuste_estoque():
             usuario_id=session.get("user_id"),
             observacao=observacao,
         )
+        
+        # Avisar se estoque foi setado para zero
+        aviso = None
+        if novo_estoque == 0:
+            aviso = "Atenção: estoque foi ajustado para zero."
+        
         return (
             jsonify(
                 {
                     "message": "Estoque ajustado com sucesso!",
                     "movimento": movimento_info,
+                    "aviso": aviso,
                 }
             ),
             200,

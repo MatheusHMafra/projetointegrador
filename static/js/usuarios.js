@@ -135,7 +135,8 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
       // Desabilitar botão de exclusão para o próprio usuário logado
       // Acessa window.currentUserInfo que foi injetado no HTML
       const disableDelete =
-        window.currentUserInfo && usuario.id === window.currentUserInfo.id;
+        window.currentUserInfo &&
+        Number(usuario.id) === Number(window.currentUserInfo.id);
 
       const row = `
                 <tr>
@@ -151,22 +152,26 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
                     <td>${dataCriacao}</td>
                     <td>${ultimoAcesso}</td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-primary me-1" onclick="abrirModalEditarUsuario(${
-                          usuario.id
-                        })" title="Editar">
-                            <i class="fas fa-edit"></i>
+                      <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                          <i class="fas fa-ellipsis-v"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" 
-                                onclick="confirmarExclusaoUsuarioModal(${
-                                  usuario.id
-                                }, '${String(usuario.nome || "").replace(
-        /'/g,
-        "\\'"
-      )}')" 
-                                title="Excluir" 
-                                ${disableDelete ? "disabled" : ""}>
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                          <li>
+                            <button class="dropdown-item" type="button" onclick="abrirModalEditarUsuario(${usuario.id})">
+                              <i class="fas fa-edit me-2"></i>Editar
+                            </button>
+                          </li>
+                          <li><hr class="dropdown-divider"></li>
+                          <li>
+                            <button class="dropdown-item text-danger" type="button"
+                              onclick="confirmarExclusaoUsuarioModal(${usuario.id}, '${String(usuario.nome || "").replace(/'/g, "\\'")}')"
+                              ${disableDelete ? "disabled" : ""}>
+                              <i class="fas fa-trash-alt me-2"></i>Excluir
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
                     </td>
                 </tr>
             `;
@@ -177,7 +182,9 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
   const totalUsuariosElement = document.getElementById("total-usuarios");
   if (totalUsuariosElement) {
     const totalGeral = usuariosParaRenderizar.length; // Total antes do filtro
-    totalUsuariosElement.textContent = `Total: ${totalGeral} usuários (mostrando ${usuariosFiltrados.length})`;
+    const totalAtivos = usuariosParaRenderizar.filter((u) => u.ativo).length;
+    const totalInativos = totalGeral - totalAtivos;
+    totalUsuariosElement.textContent = `Total: ${totalGeral} usuários | Ativos: ${totalAtivos} | Inativos: ${totalInativos} (mostrando ${usuariosFiltrados.length})`;
   }
 }
 
@@ -317,9 +324,10 @@ function submeterFormularioEditarUsuario() {
         "success"
       );
       const modalEl = document.getElementById("modalEditarUsuario");
-      if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
-        // Verifica se o modal existe e está instanciado
-        bootstrap.Modal.getInstance(modalEl).hide();
+      if (modalEl) {
+        const modal =
+          bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
       }
       carregarUsuarios(true); // Força recarregar da API para ter os dados mais recentes
     })
@@ -390,9 +398,10 @@ function executarExclusaoUsuario(usuarioId) {
         "success"
       );
       const modalEl = document.getElementById("modalConfirmarExclusaoUsuario");
-      if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
-        // Verifica se o modal existe e está instanciado
-        bootstrap.Modal.getInstance(modalEl).hide();
+      if (modalEl) {
+        const modal =
+          bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
       }
       carregarUsuarios(true); // Força recarregar da API para ter os dados mais recentes
     })
@@ -405,8 +414,10 @@ function executarExclusaoUsuario(usuarioId) {
       showNotification(msg, "danger");
       // Mesmo com erro, fechar o modal de confirmação
       const modalEl = document.getElementById("modalConfirmarExclusaoUsuario");
-      if (modalEl && bootstrap.Modal.getInstance(modalEl)) {
-        bootstrap.Modal.getInstance(modalEl).hide();
+      if (modalEl) {
+        const modal =
+          bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
       }
     })
     .finally(() => {

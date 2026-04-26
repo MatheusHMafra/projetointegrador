@@ -10,8 +10,19 @@ let currentFiltersProdutos = {
     categoria_id: '',
     fornecedor_id: '',
     estoque_baixo: false,
+    incluir_inativos: false,
     termo: ''
 };
+
+const userLevelProdutos = (window.currentUserInfo?.level || '').toLowerCase();
+const canManageProduto = ['admin', 'gerente'].includes(userLevelProdutos);
+const canDeleteProduto = userLevelProdutos === 'admin';
+
+function assertProdutoPermission(canProceed, message) {
+    if (canProceed) return true;
+    showNotification(message || 'Você não tem permissão para esta ação.', 'warning');
+    return false;
+}
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
@@ -104,7 +115,7 @@ function carregarProdutos() {
     if (typeof API_ROUTES === 'undefined' || (!API_ROUTES.PRODUTOS_LISTAR && !API_ROUTES.PRODUTOS_BUSCA)) {
         console.error('Erro de Configuração: Rotas de produtos (PRODUTOS_LISTAR/PRODUTOS_BUSCA) não definidas em api-routes.js.');
         showNotification('Erro ao carregar produtos (Config API).', 'danger');
-        document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="9" class="text-center text-danger">Erro de Configuração API.</td></tr>`;
+        document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="10" class="text-center text-danger">Erro de Configuração API.</td></tr>`;
         toggleLoading(false);
         return;
     }
@@ -119,6 +130,8 @@ function carregarProdutos() {
         // 'termo' é usado para a rota de busca, 'q' ou 'nome' podem ser usados pela API de listagem geral
         // A função buscar_produtos no backend espera 'termo'.
         termo: currentFiltersProdutos.termo || null
+        ,
+        incluir_inativos: currentFiltersProdutos.incluir_inativos
     };
 
     // Limpar parâmetros nulos ou vazios para não enviar na URL, exceto booleanos
@@ -145,7 +158,7 @@ function carregarProdutos() {
         .catch(error => {
             console.error('Erro ao carregar produtos:', error.response ? error.response.data : error.message);
             showNotification('Falha ao carregar lista de produtos.', 'danger');
-            document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="9" class="text-center text-danger">Erro ao carregar produtos. Tente novamente.</td></tr>`;
+            document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="10" class="text-center text-danger">Erro ao carregar produtos. Tente novamente.</td></tr>`;
         })
         .finally(() => {
             toggleLoading(false);
@@ -163,7 +176,7 @@ function renderizarTabelaProdutos(produtos) {
     tabelaBody.innerHTML = ''; // Limpar tabela
 
     if (produtos.length === 0) {
-        tabelaBody.innerHTML = `<tr><td colspan="9" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
+        tabelaBody.innerHTML = `<tr><td colspan="10" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
         return;
     }
 
@@ -171,6 +184,36 @@ function renderizarTabelaProdutos(produtos) {
         const precoCompraFmt = produto.preco_compra ? `R$ ${parseFloat(produto.preco_compra).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
         const precoVendaFmt = produto.preco ? `R$ ${parseFloat(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
         const estoqueClasse = produto.estoque <= produto.estoque_minimo ? 'text-danger fw-bold' : '';
+        const ativo = produto.ativo === undefined ? true : !!produto.ativo;
+        const statusBadgeClass = ativo ? 'success' : 'danger';
+        const statusBadgeText = ativo ? 'Ativo' : 'Inativo';
+        const nomeProdutoEscapado = String(produto.nome || '').replace(/'/g, "\\'");
+
+        const actionEdit = canManageProduto
+            ? `<li>
+                    <button class="dropdown-item" type="button" onclick="abrirModalEditarProduto(${produto.id})">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </button>
+               </li>`
+            : '';
+
+        const actionDanger = canDeleteProduto
+            ? `<li>
+                    <button class="dropdown-item text-danger" type="button" onclick="confirmarExclusaoProdutoModal(${produto.id}, '${nomeProdutoEscapado}')">
+                        <i class="fas fa-trash-alt me-2"></i>Excluir
+                    </button>
+               </li>`
+            : canManageProduto
+                ? `<li>
+                        <button class="dropdown-item text-warning" type="button" onclick="alternarStatusProduto(${produto.id})">
+                            <i class="fas fa-eye-slash me-2"></i>${ativo ? 'Ocultar' : 'Reativar'}
+                        </button>
+                   </li>`
+                : '';
+
+        const actionDivider = (actionEdit && actionDanger)
+            ? '<li><hr class="dropdown-divider"></li>'
+            : '';
 
         const row = `
             <tr>
@@ -182,13 +225,18 @@ function renderizarTabelaProdutos(produtos) {
                 <td>${precoVendaFmt}</td>
                 <td class="${estoqueClasse}">${produto.estoque}</td>
                 <td>${produto.estoque_minimo}</td>
+                <td><span class="badge bg-${statusBadgeClass}">${statusBadgeText}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-primary me-1" onclick="abrirModalEditarProduto(${produto.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="confirmarExclusaoProdutoModal(${produto.id}, '${produto.nome.replace(/'/g, "\\'")}')" title="Excluir">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            ${actionEdit}
+                            ${actionDivider}
+                            ${actionDanger}
+                        </ul>
+                    </div>
                 </td>
             </tr>
         `;
@@ -269,6 +317,7 @@ function configurarFiltrosProdutos() {
     const filtroCategoriaEl = document.getElementById('filtro-categoria');
     const filtroFornecedorEl = document.getElementById('filtro-fornecedor');
     const filtroEstoqueBaixoEl = document.getElementById('filtro-estoque-baixo');
+    const filtroInativosEl = document.getElementById('filtro-incluir-inativos');
 
     if (filtroCategoriaEl) {
         filtroCategoriaEl.addEventListener('change', (e) => {
@@ -287,6 +336,14 @@ function configurarFiltrosProdutos() {
     if (filtroEstoqueBaixoEl) {
         filtroEstoqueBaixoEl.addEventListener('change', (e) => {
             currentFiltersProdutos.estoque_baixo = e.target.checked;
+            currentPageProdutos = 1;
+            carregarProdutos();
+        });
+    }
+
+    if (filtroInativosEl) {
+        filtroInativosEl.addEventListener('change', (e) => {
+            currentFiltersProdutos.incluir_inativos = e.target.checked;
             currentPageProdutos = 1;
             carregarProdutos();
         });
@@ -418,6 +475,8 @@ function carregarOpcoesFornecedoresParaModal(selectId, isModalContext = false) {
  * Submete o formulário de adicionar novo produto.
  */
 function submeterFormularioAdicionarProduto() {
+    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem adicionar produtos.')) return;
+
     if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTOS_LISTAR) {
         showNotification('Erro de Configuração API ao adicionar produto.', 'danger');
         return;
@@ -466,6 +525,8 @@ function submeterFormularioAdicionarProduto() {
  * @param {number} produtoId - ID do produto a ser editado.
  */
 function abrirModalEditarProduto(produtoId) {
+    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem editar produtos.')) return;
+
     if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) {
         showNotification('Erro de Configuração API ao editar produto.', 'danger');
         return;
@@ -517,6 +578,8 @@ function abrirModalEditarProduto(produtoId) {
  * Submete o formulário de edição do produto.
  */
 function submeterFormularioEditarProduto() {
+    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem atualizar produtos.')) return;
+
     const produtoId = document.getElementById('idProdutoEditar').value;
     if (!produtoId) {
         showNotification('ID do produto para edição não encontrado.', 'danger');
@@ -572,6 +635,8 @@ function submeterFormularioEditarProduto() {
  * @param {string} nomeProduto - Nome do produto.
  */
 function confirmarExclusaoProdutoModal(produtoId, nomeProduto) {
+    if (!assertProdutoPermission(canDeleteProduto, 'Apenas admin pode excluir produtos.')) return;
+
     document.getElementById('excluirProdutoNome').textContent = nomeProduto;
     document.getElementById('btnConfirmarExclusao').dataset.produtoId = produtoId;
 
@@ -584,6 +649,8 @@ function confirmarExclusaoProdutoModal(produtoId, nomeProduto) {
  * @param {number} produtoId - ID do produto a ser excluído.
  */
 function executarExclusaoProduto(produtoId) {
+    if (!assertProdutoPermission(canDeleteProduto, 'Apenas admin pode excluir produtos.')) return;
+
     if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) {
         showNotification('Erro de Configuração API ao excluir produto.', 'danger');
         return;
@@ -600,6 +667,30 @@ function executarExclusaoProduto(produtoId) {
         .catch(error => {
             console.error('Erro ao excluir produto:', error.response ? error.response.data : error.message);
             const msg = error.response?.data?.error || 'Erro desconhecido ao excluir produto.';
+            showNotification(msg, 'danger');
+        })
+        .finally(() => {
+            toggleLoading(false);
+        });
+}
+
+function alternarStatusProduto(produtoId) {
+    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem alterar status de produtos.')) return;
+
+    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_ALTERNAR_STATUS) {
+        showNotification('Erro de Configuração API ao alterar status do produto.', 'danger');
+        return;
+    }
+
+    toggleLoading(true);
+    axios.post(API_ROUTES.PRODUTO_ALTERNAR_STATUS(produtoId))
+        .then(response => {
+            showNotification(response.data.message || 'Status do produto alterado com sucesso!', 'success');
+            carregarProdutos();
+        })
+        .catch(error => {
+            console.error('Erro ao alterar status do produto:', error.response ? error.response.data : error.message);
+            const msg = error.response?.data?.error || 'Erro ao alterar status do produto.';
             showNotification(msg, 'danger');
         })
         .finally(() => {

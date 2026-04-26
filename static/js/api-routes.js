@@ -23,6 +23,7 @@ const API_ROUTES = {
   // Produtos
   PRODUTOS_LISTAR: "/produtos/", 
   PRODUTO_DETALHES: (id) => `/produtos/${id}`,
+  PRODUTO_ALTERNAR_STATUS: (id) => `/produtos/${id}/alternar-status`,
   PRODUTOS_BUSCA: "/produtos/busca", 
   PRODUTOS_MAIS_VENDIDOS: "/produtos/mais-vendidos", 
   PRODUTOS_MENOS_VENDIDOS: "/produtos/menos-vendidos", 

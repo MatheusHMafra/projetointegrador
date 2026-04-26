@@ -251,7 +251,7 @@ def obter_estatisticas():
         resultado = {}
 
         # Total de produtos
-        cursor.execute("SELECT COUNT(id) FROM produto")
+        cursor.execute("SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 1")
         resultado["total_produtos"] = cursor.fetchone()[0]
 
         # Total de categorias
@@ -264,19 +264,23 @@ def obter_estatisticas():
 
         # Valor total em estoque (baseado no preço de compra)
         cursor.execute(
-            "SELECT SUM(estoque * preco_compra) FROM produto WHERE estoque > 0 AND preco_compra > 0"
+            "SELECT SUM(estoque * preco_compra) FROM produto WHERE estoque > 0 AND preco_compra > 0 AND COALESCE(ativo, 1) = 1"
         )
         resultado["valor_total_estoque"] = cursor.fetchone()[0] or 0.0
 
         # Produtos com estoque baixo
         cursor.execute(
-            "SELECT COUNT(id) FROM produto WHERE estoque <= estoque_minimo AND estoque > 0"
+            "SELECT COUNT(id) FROM produto WHERE estoque <= estoque_minimo AND estoque > 0 AND COALESCE(ativo, 1) = 1"
         )
         resultado["produtos_estoque_baixo"] = cursor.fetchone()[0]
 
         # Produtos sem estoque
-        cursor.execute("SELECT COUNT(id) FROM produto WHERE estoque = 0")
+        cursor.execute("SELECT COUNT(id) FROM produto WHERE estoque = 0 AND COALESCE(ativo, 1) = 1")
         resultado["produtos_sem_estoque"] = cursor.fetchone()[0]
+
+        # Produtos inativos
+        cursor.execute("SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 0")
+        resultado["produtos_inativos"] = cursor.fetchone()[0]
 
         # Vendas nos últimos 30 dias (contagem e valor)
         trinta_dias_atras = (
@@ -297,6 +301,7 @@ def obter_estatisticas():
             FROM estoque_movimentacao m
             JOIN produto p ON m.produto_id = p.id
             LEFT JOIN usuario u ON m.usuario_id = u.id
+            WHERE COALESCE(p.ativo, 1) = 1
             ORDER BY m.data_movimento DESC
             LIMIT 5
         """
@@ -328,6 +333,7 @@ def obter_estatisticas():
             "valor_total_estoque": 0.0,
             "produtos_estoque_baixo": 0,
             "produtos_sem_estoque": 0,
+            "produtos_inativos": 0,
             "vendas_ultimos_30_dias_contagem": 0,
             "vendas_ultimos_30_dias_valor": 0.0,
             "movimentacoes_recentes": [],
@@ -499,6 +505,7 @@ def buscar_produtos(
     categoria_id=None,
     fornecedor_id=None,
     estoque_baixo=False,
+    incluir_inativos=False,
     page=1,
     per_page=10,
     ordenar_por="p.nome",
@@ -516,7 +523,7 @@ def buscar_produtos(
         query_select = """
             SELECT
                 p.id, p.codigo, p.nome, p.descricao, p.preco, p.preco_compra,
-                p.estoque, p.estoque_minimo, p.imagem_url,
+                p.estoque, p.estoque_minimo, p.ativo, p.imagem_url,
                 p.categoria_id, c.nome as categoria_nome,
                 p.fornecedor_id, f.nome as fornecedor_nome
             FROM produto p
@@ -527,6 +534,9 @@ def buscar_produtos(
 
         where_clauses = []
         params = []
+
+        if not incluir_inativos:
+            where_clauses.append("COALESCE(p.ativo, 1) = 1")
 
         if termo:
             # Busca por código, nome ou descrição

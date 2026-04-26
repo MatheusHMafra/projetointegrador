@@ -18,6 +18,16 @@ let currentFiltersFornecedores = {
 };
 let currentProdutosFornecedorPage = 1; // Página atual para produtos no modal
 
+const userLevelFornecedores = (window.currentUserInfo?.level || '').toLowerCase();
+const canManageFornecedor = ['admin', 'gerente'].includes(userLevelFornecedores);
+const canDeleteFornecedor = userLevelFornecedores === 'admin';
+
+function assertFornecedorPermission(canProceed, message) {
+    if (canProceed) return true;
+    showNotification(message || 'Você não tem permissão para esta ação.', 'warning');
+    return false;
+}
+
 // Inicialização quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
     // Carregar lista inicial de fornecedores (página 1, ativos por padrão talvez?)
@@ -164,6 +174,47 @@ function renderizarTabelaFornecedores(listaFornecedores) {
         const statusText = fornecedor.ativo ? 'Ativo' : 'Inativo';
         const toggleStatusIcon = fornecedor.ativo ? 'fa-toggle-on text-success' : 'fa-toggle-off text-secondary';
         const toggleStatusTitle = fornecedor.ativo ? 'Desativar' : 'Ativar';
+        const nomeFornecedorEscapado = String(fornecedor.nome || '').replace(/'/g, "\\'");
+
+        const actionToggle = canManageFornecedor
+            ? `<li>
+                    <button class="dropdown-item" type="button" onclick="alternarStatusFornecedor(${fornecedor.id})">
+                        <i class="fas ${toggleStatusIcon} me-2"></i>${toggleStatusTitle}
+                    </button>
+               </li>`
+            : '';
+
+        const actionEdit = canManageFornecedor
+            ? `<li>
+                    <button class="dropdown-item" type="button" onclick="editarFornecedor(${fornecedor.id})">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </button>
+               </li>`
+            : '';
+
+        const actionDanger = canDeleteFornecedor
+            ? `<li>
+                    <button class="dropdown-item text-danger" type="button" onclick="excluirFornecedor(${fornecedor.id}, '${nomeFornecedorEscapado}')" ${fornecedor.total_produtos > 0 ? 'disabled' : ''}>
+                        <i class="fas fa-trash-alt me-2"></i>Excluir
+                    </button>
+               </li>`
+            : canManageFornecedor
+                ? `<li>
+                        <button class="dropdown-item text-warning" type="button" onclick="alternarStatusFornecedor(${fornecedor.id})">
+                            <i class="fas fa-eye-slash me-2"></i>Ocultar
+                        </button>
+                   </li>`
+                : '';
+
+        const actionVerProdutos = `<li>
+                    <button class="dropdown-item" type="button" onclick="verProdutosFornecedor(${fornecedor.id}, '${nomeFornecedorEscapado}')">
+                        <i class="fas fa-boxes me-2"></i>Produtos (${fornecedor.total_produtos || 0})
+                    </button>
+               </li>`;
+
+        const actionDivider = (actionToggle || actionEdit || actionDanger)
+            ? '<li><hr class="dropdown-divider"></li>'
+            : '';
 
         tabela.innerHTML += `
             <tr>
@@ -174,18 +225,18 @@ function renderizarTabelaFornecedores(listaFornecedores) {
                 <td>${fornecedor.email || '-'}</td>
                 <td><span class="badge bg-${statusClass}">${statusText}</span></td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-secondary me-1" onclick="alternarStatusFornecedor(${fornecedor.id})" title="${toggleStatusTitle}">
-                        <i class="fas ${toggleStatusIcon}"></i>
-                    </button>
-                    <button class="btn btn-sm btn-info me-1" onclick="verProdutosFornecedor(${fornecedor.id}, '${fornecedor.nome}')" title="Ver Produtos (${fornecedor.total_produtos || 0})">
-                        <i class="fas fa-boxes"></i>
-                    </button>
-                    <button class="btn btn-sm btn-primary me-1" onclick="editarFornecedor(${fornecedor.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirFornecedor(${fornecedor.id}, '${fornecedor.nome}')" title="Excluir" ${fornecedor.total_produtos > 0 ? 'disabled' : ''}>
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            ${actionVerProdutos}
+                            ${actionDivider}
+                            ${actionToggle}
+                            ${actionEdit}
+                            ${actionDanger}
+                        </ul>
+                    </div>
                 </td>
             </tr>
         `;
@@ -233,6 +284,8 @@ function mudarPaginaFornecedor(page) {
  * Adiciona um novo fornecedor
  */
 function adicionarFornecedor() {
+    if (!assertFornecedorPermission(canManageFornecedor, 'Apenas admin e gerente podem adicionar fornecedores.')) return;
+
     // Obter dados do formulário
     const nome = document.getElementById('nomeFornecedor').value.trim();
     const cnpj = document.getElementById('cnpjFornecedor').value.trim();
@@ -284,6 +337,8 @@ function adicionarFornecedor() {
  * @param {number} id - ID do fornecedor
  */
 function editarFornecedor(id) {
+    if (!assertFornecedorPermission(canManageFornecedor, 'Apenas admin e gerente podem editar fornecedores.')) return;
+
     toggleLoading(true);
 
     axios.get(API_ROUTES.FORNECEDOR_DETALHES(id))
@@ -318,6 +373,8 @@ function editarFornecedor(id) {
  * Atualiza os dados de um fornecedor existente
  */
 function atualizarFornecedor() {
+    if (!assertFornecedorPermission(canManageFornecedor, 'Apenas admin e gerente podem atualizar fornecedores.')) return;
+
     // Obter dados do formulário
     const id = document.getElementById('editFornecedorId').value;
     const nome = document.getElementById('editNomeFornecedor').value.trim();
@@ -373,6 +430,8 @@ function atualizarFornecedor() {
  * @param {string} nome - Nome do fornecedor
  */
 function excluirFornecedor(id, nome) {
+    if (!assertFornecedorPermission(canDeleteFornecedor, 'Apenas admin pode excluir fornecedores.')) return;
+
     // Não usa mais o input hidden, pega o ID do data attribute do botão confirmar
     document.getElementById('excluirFornecedorNome').textContent = nome;
     document.getElementById('btnConfirmarExclusao').dataset.fornecedorId = id; // Armazena no botão
@@ -385,6 +444,8 @@ function excluirFornecedor(id, nome) {
  * Confirma a exclusão do fornecedor
  */
 function confirmarExclusaoFornecedor() {
+    if (!assertFornecedorPermission(canDeleteFornecedor, 'Apenas admin pode excluir fornecedores.')) return;
+
     const id = document.getElementById('btnConfirmarExclusao').dataset.fornecedorId; // Pega do botão
     if (!id) return;
 
@@ -422,6 +483,8 @@ function confirmarExclusaoFornecedor() {
  * @param {number} id - ID do fornecedor
  */
 function alternarStatusFornecedor(id) {
+    if (!assertFornecedorPermission(canManageFornecedor, 'Apenas admin e gerente podem alterar status de fornecedores.')) return;
+
     toggleLoading(true);
 
     axios.post(API_ROUTES.FORNECEDOR_ALTERNAR_STATUS(id))

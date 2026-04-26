@@ -297,6 +297,9 @@ def gerenciar_todos_produtos():
             estoque_baixo_filter = (
                 request.args.get("estoque_baixo", "").lower() == "true"
             )
+            include_inativos = (
+                request.args.get("incluir_inativos", "").lower() == "true"
+            )
             ordenar_por = request.args.get(
                 "ordenar_por", "p.nome"
             )  # Ex: 'p.nome', 'p.preco', 'p.estoque'
@@ -309,6 +312,7 @@ def gerenciar_todos_produtos():
                 categoria_id=categoria_id_filter,
                 fornecedor_id=fornecedor_id_filter,
                 estoque_baixo=estoque_baixo_filter,
+                incluir_inativos=include_inativos,
                 page=page,
                 per_page=per_page,
                 ordenar_por=ordenar_por,
@@ -438,8 +442,8 @@ def gerenciar_todos_produtos():
 
             # Inserir produto
             sql_insert_prod = """
-                INSERT INTO produto (codigo, nome, descricao, categoria_id, fornecedor_id, preco, preco_compra, estoque, estoque_minimo, imagem_url, data_criacao, ultima_atualizacao)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO produto (codigo, nome, descricao, categoria_id, fornecedor_id, preco, preco_compra, estoque, estoque_minimo, imagem_url, ativo, data_criacao, ultima_atualizacao)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """
             params_insert = (
                 codigo,
@@ -452,6 +456,7 @@ def gerenciar_todos_produtos():
                 estoque,
                 estoque_minimo,
                 imagem_url,
+                1,
             )
             cursor.execute(sql_insert_prod, params_insert)
             produto_id = cursor.lastrowid
@@ -506,6 +511,7 @@ def gerenciar_todos_produtos():
 
 @produtos_bp.route("/<int:produto_id>", methods=["GET", "PUT", "DELETE"])
 @login_required
+@acesso_requerido(['admin', 'gerente'])
 def gerenciar_produto_especifico(produto_id):
     """
     GET: Retorna detalhes de um produto.
@@ -851,6 +857,59 @@ def gerenciar_produto_especifico(produto_id):
             conn.close()
 
 
+@produtos_bp.route("/<int:produto_id>/alternar-status", methods=["POST"])
+@login_required
+@acesso_requerido(["admin", "gerente"])
+def alternar_status_produto(produto_id):
+    """Alterna o status ativo/inativo de um produto sem excluí-lo."""
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id, nome, ativo FROM produto WHERE id = ?",
+            (produto_id,),
+        )
+        produto = cursor.fetchone()
+        if not produto:
+            return jsonify({"error": "Produto não encontrado."}), 404
+
+        novo_status = 0 if int(produto["ativo"]) == 1 else 1
+        cursor.execute(
+            "UPDATE produto SET ativo = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
+            (novo_status, produto_id),
+        )
+        conn.commit()
+
+        return jsonify(
+            {
+                "message": f"Produto {'ativado' if novo_status else 'inativado'} com sucesso!",
+                "id": produto_id,
+                "ativo": bool(novo_status),
+            }
+        )
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        current_app.logger.error(
+            f"Erro de BD ao alternar status do produto {produto_id}: {e}",
+            exc_info=True,
+        )
+        return jsonify({"error": "Erro no banco de dados."}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        current_app.logger.error(
+            f"Erro inesperado ao alternar status do produto {produto_id}: {e}",
+            exc_info=True,
+        )
+        return jsonify({"error": "Erro inesperado no servidor."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 # --- Rotas de Relatórios de Produtos (Mais/Menos Vendidos) ---
 # Estas rotas dependem da existência da tabela 'item_venda'.
 
@@ -867,26 +926,89 @@ def relatorio_produtos_mais_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        # Query para contar o total de produtos distintos que foram vendidos
-        count_query = "SELECT COUNT(DISTINCT p.id) FROM produto p JOIN item_venda iv ON p.id = iv.produto_id"
-        cursor.execute(count_query)
-        total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page -
-                       1) // per_page if per_page > 0 else 1
+        # Fonte preferencial: item_venda. Se não houver dados, usa fallback em estoque_movimentacao.
+        try:
+            count_query = "SELECT COUNT(DISTINCT p.id) FROM produto p JOIN item_venda iv ON p.id = iv.produto_id"
+            cursor.execute(count_query)
+            total_items = cursor.fetchone()[0]
 
-        # Query principal
-        query = """
-            SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, SUM(iv.quantidade) as total_vendido
-            FROM produto p
-            LEFT JOIN categoria c ON p.categoria_id = c.id
-            JOIN item_venda iv ON p.id = iv.produto_id
-            GROUP BY p.id, p.codigo, p.nome, c.nome
-            ORDER BY total_vendido DESC
-            LIMIT ? OFFSET ?
-        """
-        params = (per_page, (page - 1) * per_page)
-        cursor.execute(query, params)
-        produtos_rows = cursor.fetchall()
+            if total_items > 0:
+                query = """
+                    SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, SUM(iv.quantidade) as total_vendido
+                    FROM produto p
+                    LEFT JOIN categoria c ON p.categoria_id = c.id
+                    JOIN item_venda iv ON p.id = iv.produto_id
+                    GROUP BY p.id, p.codigo, p.nome, c.nome
+                    ORDER BY total_vendido DESC
+                    LIMIT ? OFFSET ?
+                """
+                params = (per_page, (page - 1) * per_page)
+                cursor.execute(query, params)
+                produtos_rows = cursor.fetchall()
+            else:
+                fallback_count_query = """
+                    SELECT COUNT(*) FROM (
+                        SELECT em.produto_id
+                        FROM estoque_movimentacao em
+                        WHERE em.tipo = 'venda'
+                        GROUP BY em.produto_id
+                    )
+                """
+                cursor.execute(fallback_count_query)
+                total_items = cursor.fetchone()[0]
+
+                fallback_query = """
+                    SELECT
+                        p.id,
+                        p.codigo,
+                        p.nome,
+                        c.nome as categoria_nome,
+                        COALESCE(SUM(ABS(em.quantidade)), 0) as total_vendido
+                    FROM produto p
+                    LEFT JOIN categoria c ON p.categoria_id = c.id
+                    JOIN estoque_movimentacao em ON p.id = em.produto_id AND em.tipo = 'venda'
+                    GROUP BY p.id, p.codigo, p.nome, c.nome
+                    ORDER BY total_vendido DESC, p.nome ASC
+                    LIMIT ? OFFSET ?
+                """
+                params = (per_page, (page - 1) * per_page)
+                cursor.execute(fallback_query, params)
+                produtos_rows = cursor.fetchall()
+
+        except sqlite3.OperationalError as e:
+            if "no such table: item_venda" not in str(e).lower():
+                raise
+
+            fallback_count_query = """
+                SELECT COUNT(*) FROM (
+                    SELECT em.produto_id
+                    FROM estoque_movimentacao em
+                    WHERE em.tipo = 'venda'
+                    GROUP BY em.produto_id
+                )
+            """
+            cursor.execute(fallback_count_query)
+            total_items = cursor.fetchone()[0]
+
+            fallback_query = """
+                SELECT
+                    p.id,
+                    p.codigo,
+                    p.nome,
+                    c.nome as categoria_nome,
+                    COALESCE(SUM(ABS(em.quantidade)), 0) as total_vendido
+                FROM produto p
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                JOIN estoque_movimentacao em ON p.id = em.produto_id AND em.tipo = 'venda'
+                GROUP BY p.id, p.codigo, p.nome, c.nome
+                ORDER BY total_vendido DESC, p.nome ASC
+                LIMIT ? OFFSET ?
+            """
+            params = (per_page, (page - 1) * per_page)
+            cursor.execute(fallback_query, params)
+            produtos_rows = cursor.fetchall()
+
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -932,24 +1054,45 @@ def relatorio_produtos_menos_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        count_query = "SELECT COUNT(id) FROM produto"  # Todos os produtos
+        count_query = "SELECT COUNT(id) FROM produto"
         cursor.execute(count_query)
         total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page -
-                       1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
-        query = """
-            SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, COALESCE(SUM(iv.quantidade), 0) as total_vendido
-            FROM produto p
-            LEFT JOIN categoria c ON p.categoria_id = c.id
-            LEFT JOIN item_venda iv ON p.id = iv.produto_id
-            GROUP BY p.id, p.codigo, p.nome, c.nome
-            ORDER BY total_vendido ASC, p.nome ASC
-            LIMIT ? OFFSET ?
-        """
-        params = (per_page, (page - 1) * per_page)
-        cursor.execute(query, params)
-        produtos_rows = cursor.fetchall()
+        try:
+            query = """
+                SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, COALESCE(SUM(iv.quantidade), 0) as total_vendido
+                FROM produto p
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                LEFT JOIN item_venda iv ON p.id = iv.produto_id
+                GROUP BY p.id, p.codigo, p.nome, c.nome
+                ORDER BY total_vendido ASC, p.nome ASC
+                LIMIT ? OFFSET ?
+            """
+            params = (per_page, (page - 1) * per_page)
+            cursor.execute(query, params)
+            produtos_rows = cursor.fetchall()
+        except sqlite3.OperationalError as e:
+            if "no such table: item_venda" not in str(e).lower():
+                raise
+
+            fallback_query = """
+                SELECT
+                    p.id,
+                    p.codigo,
+                    p.nome,
+                    c.nome as categoria_nome,
+                    COALESCE(SUM(CASE WHEN em.tipo = 'venda' THEN ABS(em.quantidade) ELSE 0 END), 0) as total_vendido
+                FROM produto p
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+                GROUP BY p.id, p.codigo, p.nome, c.nome
+                ORDER BY total_vendido ASC, p.nome ASC
+                LIMIT ? OFFSET ?
+            """
+            params = (per_page, (page - 1) * per_page)
+            cursor.execute(fallback_query, params)
+            produtos_rows = cursor.fetchall()
 
         return jsonify(
             {
@@ -961,18 +1104,6 @@ def relatorio_produtos_menos_vendidos():
             }
         )
     except sqlite3.OperationalError as e:
-        if "no such table: item_venda" in str(e).lower():
-            # Se item_venda não existe, ainda podemos listar produtos, mas total_vendido será sempre 0.
-            # Adaptar a query para não depender de item_venda ou retornar erro.
-            # Por ora, retornando erro para indicar que a funcionalidade completa não está disponível.
-            return (
-                jsonify(
-                    {
-                        "error": "Funcionalidade de menos vendidos (com contagem) indisponível: tabela 'item_venda' não encontrada."
-                    }
-                ),
-                501,
-            )
         current_app.logger.error(
             f"Erro de BD em menos-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro no banco de dados."}), 500
@@ -998,6 +1129,9 @@ def api_busca_produto():
         fornecedor_id = request.args.get("fornecedor_id", type=int)
         estoque_baixo = request.args.get(
             "estoque_baixo", "false").lower() == "true"
+        incluir_inativos = (
+            request.args.get("incluir_inativos", "false").lower() == "true"
+        )
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 15, type=int)
         ordenar_por = request.args.get("ordenar_por", "p.nome")
@@ -1009,6 +1143,7 @@ def api_busca_produto():
             categoria_id=categoria_id,
             fornecedor_id=fornecedor_id,
             estoque_baixo=estoque_baixo,
+            incluir_inativos=incluir_inativos,
             page=page,
             per_page=per_page,
             ordenar_por=ordenar_por,
@@ -1032,7 +1167,7 @@ def produtos_page_html():
 
 @produtos_bp.route("/categorias/page", methods=["GET"])
 @login_required
-# Adicione @acesso_requerido se necessário, e.g. @acesso_requerido(["admin", "gerente"])
+@acesso_requerido(["admin", "gerente"])
 def categorias_page_html():
     """Renderiza a página de gerenciamento de categorias."""
     return render_template("categorias.html")

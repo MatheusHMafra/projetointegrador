@@ -1,5 +1,6 @@
 // Configuração global do Axios (se aplicável a toda a aplicação)
 axios.defaults.headers.post['Content-Type'] = 'application/json';
+axios.defaults.headers.common['Accept'] = 'application/json';
 // Adicionar token CSRF se estiver usando Flask-WTF com AJAX
 // axios.defaults.headers.common['X-CSRFToken'] = '{{ csrf_token() }}'; // Isso precisa ser setado no template HTML
 
