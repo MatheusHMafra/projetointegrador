@@ -163,7 +163,7 @@
                     </div>
                 </div>
 
-                <!-- Relatórios de Vendas -->
+                <!-- Relatórios de Vendas (Gráficos) -->
                 <div class="row">
                     <!-- Produtos mais vendidos -->
                     <div class="col-md-6 mb-4">
@@ -171,22 +171,9 @@
                             <div class="card-header bg-white">
                                 <h5><i class="fas fa-chart-line me-2 text-success"></i>Mais Vendidos</h5>
                             </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Produto</th>
-                                                <th>Categoria</th>
-                                                <th>Vendas</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="mais-vendidos-tabela">
-                                            <tr class="text-center">
-                                                <td colspan="3">Carregando...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                            <div class="card-body">
+                                <div style="position: relative; height: 250px;">
+                                    <canvas id="graficoMaisVendidos"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -198,22 +185,40 @@
                             <div class="card-header bg-white">
                                 <h5><i class="fas fa-chart-bar me-2 text-danger"></i>Menos Vendidos</h5>
                             </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Produto</th>
-                                                <th>Categoria</th>
-                                                <th>Vendas</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="menos-vendidos-tabela">
-                                            <tr class="text-center">
-                                                <td colspan="3">Carregando...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                            <div class="card-body">
+                                <div style="position: relative; height: 250px;">
+                                    <canvas id="graficoMenosVendidos"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Classificação de Entradas e Saídas -->
+                <div class="row">
+                    <!-- Entradas por Classificação -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-arrow-down me-2 text-success"></i>Entradas por Classificação</h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="position: relative; height: 250px;">
+                                    <canvas id="graficoEntradasClassificacao"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Saídas por Classificação -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5><i class="fas fa-arrow-up me-2 text-danger"></i>Saídas por Classificação</h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="position: relative; height: 250px;">
+                                    <canvas id="graficoSaidasClassificacao"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -228,8 +233,9 @@
                                 <h5><i class="fas fa-bolt me-2"></i>Ações Rápidas</h5>
                             </div>
                             <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-3">
+                                <div class="row g-3">
+                                    {% if session.user_level in ['admin', 'gerente'] %}
+                                    <div class="col-12 col-sm-6 col-md-3">
                                         <!-- Botão abre modal Adicionar Produto -->
                                         <a href="#" class="action-card" data-bs-toggle="modal"
                                             data-bs-target="#modalAdicionarProduto">
@@ -242,8 +248,11 @@
                                             </div>
                                         </a>
                                     </div>
-                                    <div class="col-md-3">
-                                        <!-- Botão abre modal Entrada (precisa existir o modal #modalEntradaProduto) -->
+                                    {% endif %}
+
+                                    {% if session.user_level in ['admin', 'gerente', 'operador'] %}
+                                    <div class="col-12 col-sm-6 col-md-3">
+                                        <!-- Botão abre modal Entrada -->
                                         <a href="#" class="action-card" data-bs-toggle="modal"
                                             data-bs-target="#modalEntradaProduto">
                                             <div class="action-icon bg-success">
@@ -255,8 +264,8 @@
                                             </div>
                                         </a>
                                     </div>
-                                    <div class="col-md-3">
-                                        <!-- Botão abre modal Saída (precisa existir o modal #modalSaidaProduto) -->
+                                    <div class="col-12 col-sm-6 col-md-3">
+                                        <!-- Botão abre modal Saída -->
                                         <a href="#" class="action-card" data-bs-toggle="modal"
                                             data-bs-target="#modalSaidaProduto">
                                             <div class="action-icon bg-danger">
@@ -268,19 +277,22 @@
                                             </div>
                                         </a>
                                     </div>
-                                    <div class="col-md-3">
-                                        <!-- Botão abre modal Relatórios (precisa existir o modal #modalRelatorios) -->
-                                        <a href="#" class="action-card" data-bs-toggle="modal"
-                                            data-bs-target="#modalRelatorios">
+                                    {% endif %}
+
+                                    {% if session.user_level in ['admin', 'gerente'] %}
+                                    <div class="col-12 col-sm-6 col-md-3">
+                                        <!-- Botão vai direto para página de relatórios -->
+                                        <a href="{{ url_for('relatorios.relatorios_page') }}" class="action-card">
                                             <div class="action-icon bg-info">
                                                 <i class="fas fa-file-alt"></i>
                                             </div>
                                             <div class="action-text">
-                                                <h6>Relatório</h6>
-                                                <p class="small text-muted">Gerar relatórios</p>
+                                                <h6>Relatórios</h6>
+                                                <p class="small text-muted">Gerar e imprimir relatórios</p>
                                             </div>
                                         </a>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -363,7 +375,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="btnSalvarProduto">Salvar</button>
+                    <button type="submit" form="formAdicionarProduto" class="btn btn-primary" id="btnSalvarProduto">Salvar</button>
                 </div>
             </div>
         </div>

@@ -26,7 +26,12 @@ def get_db():
     conn.row_factory = sqlite3.Row  # Para acessar colunas por nome
     # Enable foreign key constraint enforcement for each connection
     conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA cache_size = -2000;")
+    conn.execute("PRAGMA temp_store = MEMORY;")
     return conn
+
 
 
 def inicializar_dados_exemplo():
@@ -321,6 +326,30 @@ def obter_estatisticas():
                 mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]
             resultado["movimentacoes_recentes"].append(mov_dict)
 
+        # Entradas por classificação
+        cursor.execute(
+            """
+            SELECT COALESCE(classificacao, 'outro') as classif, SUM(ABS(quantidade)) as total
+            FROM estoque_movimentacao
+            WHERE tipo = 'entrada'
+            GROUP BY classif
+            """
+        )
+        entradas_rows = cursor.fetchall()
+        resultado["entradas_por_classificacao"] = {row["classif"]: row["total"] for row in entradas_rows}
+
+        # Saídas por classificação
+        cursor.execute(
+            """
+            SELECT COALESCE(classificacao, 'outro') as classif, SUM(ABS(quantidade)) as total
+            FROM estoque_movimentacao
+            WHERE tipo IN ('saida', 'venda')
+            GROUP BY classif
+            """
+        )
+        saidas_rows = cursor.fetchall()
+        resultado["saidas_por_classificacao"] = {row["classif"]: row["total"] for row in saidas_rows}
+
         return resultado
 
     except sqlite3.Error as e:
@@ -337,6 +366,8 @@ def obter_estatisticas():
             "vendas_ultimos_30_dias_contagem": 0,
             "vendas_ultimos_30_dias_valor": 0.0,
             "movimentacoes_recentes": [],
+            "entradas_por_classificacao": {},
+            "saidas_por_classificacao": {},
             "error": str(e),
         }
     finally:
@@ -517,6 +548,11 @@ def buscar_produtos(
     """
     conn = None
     try:
+        if isinstance(estoque_baixo, str):
+            estoque_baixo = estoque_baixo.lower() == "true"
+        if isinstance(incluir_inativos, str):
+            incluir_inativos = incluir_inativos.lower() == "true"
+
         conn = get_db()
         cursor = conn.cursor()
 
@@ -537,6 +573,7 @@ def buscar_produtos(
         params = []
 
         if not incluir_inativos:
+
             where_clauses.append("COALESCE(p.ativo, 1) = 1")
 
         if termo:

@@ -241,6 +241,7 @@ function renderizarTabelaFornecedores(listaFornecedores) {
             </tr>
         `;
     });
+    inicializarDropdownsTabela();
 }
 
 /**

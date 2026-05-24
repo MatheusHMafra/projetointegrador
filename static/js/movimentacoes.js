@@ -24,12 +24,11 @@ const perPageMov = 15; // Ou pegar de um seletor na página
  */
 function carregarMovimentacoes(page = 1, filtros = {}) {
     currentPageMov = page;
-    const spinner = document.getElementById('loading-spinner-mov');
     const placeholder = document.getElementById('movimentacoes-placeholder');
     const tabelaCorpo = document.getElementById('movimentacoes-tabela-corpo');
     const paginacaoNav = document.getElementById('paginacao-movimentacoes-nav');
 
-    if (spinner) spinner.style.display = 'inline-block';
+    toggleLoading(true);
     if (placeholder) placeholder.textContent = 'Carregando movimentações...';
     if (tabelaCorpo) tabelaCorpo.innerHTML = ''; // Limpa a tabela antes de carregar
 
@@ -97,7 +96,7 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
             if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center text-danger">${errorMsg}</td></tr>`;
         })
         .finally(() => {
-            if (spinner) spinner.style.display = 'none';
+            toggleLoading(false);
         });
 }
 

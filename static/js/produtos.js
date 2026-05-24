@@ -218,21 +218,17 @@ function renderizarTabelaProdutos(produtos) {
                </li>`
             : '';
 
-        const actionDanger = canDeleteProduto
+        const toggleStatusIcon = ativo ? 'fa-toggle-on text-success' : 'fa-toggle-off text-secondary';
+        const toggleStatusTitle = ativo ? 'Desativar' : 'Ativar';
+        const actionToggleStatus = canManageProduto
             ? `<li>
-                    <button class="dropdown-item text-danger" type="button" onclick="confirmarExclusaoProdutoModal(${produto.id}, '${nomeProdutoEscapado}')">
-                        <i class="fas fa-trash-alt me-2"></i>Excluir
+                    <button class="dropdown-item" type="button" onclick="alternarStatusProduto(${produto.id})">
+                        <i class="fas ${toggleStatusIcon} me-2"></i>${toggleStatusTitle}
                     </button>
                </li>`
-            : canManageProduto
-                ? `<li>
-                        <button class="dropdown-item text-warning" type="button" onclick="alternarStatusProduto(${produto.id})">
-                            <i class="fas fa-eye-slash me-2"></i>${ativo ? 'Ocultar' : 'Reativar'}
-                        </button>
-                   </li>`
-                : '';
+            : '';
 
-        const actionDivider = (actionEdit && actionDanger)
+        const actionDivider = (actionEdit && actionToggleStatus)
             ? '<li><hr class="dropdown-divider"></li>'
             : '';
 
@@ -255,7 +251,7 @@ function renderizarTabelaProdutos(produtos) {
                         <ul class="dropdown-menu dropdown-menu-end">
                             ${actionEdit}
                             ${actionDivider}
-                            ${actionDanger}
+                            ${actionToggleStatus}
                         </ul>
                     </div>
                 </td>
@@ -263,6 +259,7 @@ function renderizarTabelaProdutos(produtos) {
         `;
         tabelaBody.innerHTML += row;
     });
+    inicializarDropdownsTabela();
 }
 
 /**

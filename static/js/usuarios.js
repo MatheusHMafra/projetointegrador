@@ -186,6 +186,7 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
     const totalInativos = totalGeral - totalAtivos;
     totalUsuariosElement.textContent = `Total: ${totalGeral} usuários | Ativos: ${totalAtivos} | Inativos: ${totalInativos} (mostrando ${usuariosFiltrados.length})`;
   }
+  inicializarDropdownsTabela();
 }
 
 /**

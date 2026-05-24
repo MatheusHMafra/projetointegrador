@@ -28,6 +28,13 @@
             </a>
         </li>
 
+        <li class="{{ 'active' if request.endpoint == 'fornecedores.fornecedores_page_html' else '' }}">
+            <a href="{{ url_for('fornecedores.fornecedores_page_html') }}">
+                <i class="fas fa-truck"></i>
+                <span>Fornecedores</span>
+            </a>
+        </li>
+
         <li class="{{ 'active' if request.endpoint == 'estoque.movimentacoes_page' else '' }}">
             <a href="{{ url_for('estoque.movimentacoes_page') }}">
                 <i class="fas fa-history"></i>
@@ -43,13 +50,6 @@
             </a>
         </li>
         {% endif %}
-
-        <li class="{{ 'active' if request.endpoint == 'fornecedores.fornecedores_page_html' else '' }}">
-            <a href="{{ url_for('fornecedores.fornecedores_page_html') }}">
-                <i class="fas fa-truck"></i>
-                <span>Fornecedores</span>
-            </a>
-        </li>
 
         {% if session.user_level == 'admin' %}
         <li

@@ -124,6 +124,36 @@ function toggleLoading(show = true) {
 }
 
 
+/**
+ * Inicializa os dropdowns de ação nas tabelas usando a estratégia 'fixed' do Popper
+ * para evitar que o menu seja cortado por contêineres com overflow (ex: .table-responsive).
+ * @param {string} containerId - Opcional. ID do contêiner para restringir a busca.
+ */
+function inicializarDropdownsTabela(containerId) {
+    const selector = containerId 
+        ? `#${containerId} .table-actions-toggle` 
+        : '.table-actions-toggle';
+    
+    const dropdownButtons = document.querySelectorAll(selector);
+    dropdownButtons.forEach(btn => {
+        // Destruir instância anterior se já existir para evitar vazamento de memória / duplicidade
+        const existingInstance = bootstrap.Dropdown.getInstance(btn);
+        if (existingInstance) {
+            existingInstance.destroy();
+        }
+        
+        new bootstrap.Dropdown(btn, {
+            popperConfig(defaultConfig) {
+                return {
+                    ...defaultConfig,
+                    strategy: 'fixed'
+                };
+            }
+        });
+    });
+}
+
+
 // Adicionar listener para o evento 'themeChanged' para que outros módulos possam reagir
 // Exemplo: Atualizar gráficos no dashboard.js quando o tema mudar
 document.addEventListener('themeChanged', (event) => {

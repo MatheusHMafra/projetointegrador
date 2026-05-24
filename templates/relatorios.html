@@ -72,6 +72,7 @@
                                     <option value="" disabled selected>Selecione um relatório...</option>
                                     <option value="vendas">Vendas de Produtos (Mais/Menos Vendidos)</option>
                                     <option value="estoque">Níveis de Estoque (Status dos Produtos)</option>
+                                    <option value="fornecedores">Resumo de Fornecedores</option>
                                 </select>
                             </div>
 
@@ -94,6 +95,16 @@
                                     <option value="baixo">Estoque Baixo</option>
                                     <option value="ok">Estoque Adequado</option>
                                     <option value="excesso">Estoque Excessivo</option>
+                                </select>
+                            </div>
+
+                            <!-- Options for Supplier Report -->
+                            <div class="col-md-4 option-field supplier-option" style="display: none;">
+                                <label for="supplier-status" class="form-label">Status do Fornecedor</label>
+                                <select id="supplier-status" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="ativos">Apenas Ativos</option>
+                                    <option value="inativos">Apenas Inativos</option>
                                 </select>
                             </div>
 

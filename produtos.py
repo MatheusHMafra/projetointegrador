@@ -923,90 +923,51 @@ def relatorio_produtos_mais_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        # Fonte preferencial: item_venda. Se não houver dados, usa fallback em estoque_movimentacao.
-        try:
-            count_query = "SELECT COUNT(DISTINCT p.id) FROM produto p JOIN item_venda iv ON p.id = iv.produto_id"
-            cursor.execute(count_query)
-            total_items = cursor.fetchone()[0]
-
-            if total_items > 0:
-                query = """
-                    SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, SUM(iv.quantidade) as total_vendido
-                    FROM produto p
-                    LEFT JOIN categoria c ON p.categoria_id = c.id
-                    JOIN item_venda iv ON p.id = iv.produto_id
-                    GROUP BY p.id, p.codigo, p.nome, c.nome
-                    ORDER BY total_vendido DESC
-                    LIMIT ? OFFSET ?
-                """
-                params = (per_page, (page - 1) * per_page)
-                cursor.execute(query, params)
-                produtos_rows = cursor.fetchall()
-            else:
-                fallback_count_query = """
-                    SELECT COUNT(*) FROM (
-                        SELECT em.produto_id
-                        FROM estoque_movimentacao em
-                        WHERE em.tipo = 'venda'
-                        GROUP BY em.produto_id
-                    )
-                """
-                cursor.execute(fallback_count_query)
-                total_items = cursor.fetchone()[0]
-
-                fallback_query = """
-                    SELECT
-                        p.id,
-                        p.codigo,
-                        p.nome,
-                        c.nome as categoria_nome,
-                        COALESCE(SUM(ABS(em.quantidade)), 0) as total_vendido
-                    FROM produto p
-                    LEFT JOIN categoria c ON p.categoria_id = c.id
-                    JOIN estoque_movimentacao em ON p.id = em.produto_id AND em.tipo = 'venda'
-                    GROUP BY p.id, p.codigo, p.nome, c.nome
-                    ORDER BY total_vendido DESC, p.nome ASC
-                    LIMIT ? OFFSET ?
-                """
-                params = (per_page, (page - 1) * per_page)
-                cursor.execute(fallback_query, params)
-                produtos_rows = cursor.fetchall()
-
-        except sqlite3.OperationalError as e:
-            if "no such table: item_venda" not in str(e).lower():
-                raise
-
-            fallback_count_query = """
-                SELECT COUNT(*) FROM (
-                    SELECT em.produto_id
-                    FROM estoque_movimentacao em
-                    WHERE em.tipo = 'venda'
-                    GROUP BY em.produto_id
-                )
-            """
-            cursor.execute(fallback_count_query)
-            total_items = cursor.fetchone()[0]
-
-            fallback_query = """
-                SELECT
-                    p.id,
-                    p.codigo,
-                    p.nome,
-                    c.nome as categoria_nome,
-                    COALESCE(SUM(ABS(em.quantidade)), 0) as total_vendido
+        # Usando a consulta unificada diretamente no estoque_movimentacao
+        count_query = """
+            SELECT COUNT(*) FROM (
+                SELECT p.id, COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
                 FROM produto p
-                LEFT JOIN categoria c ON p.categoria_id = c.id
-                JOIN estoque_movimentacao em ON p.id = em.produto_id AND em.tipo = 'venda'
-                GROUP BY p.id, p.codigo, p.nome, c.nome
-                ORDER BY total_vendido DESC, p.nome ASC
-                LIMIT ? OFFSET ?
-            """
-            params = (per_page, (page - 1) * per_page)
-            cursor.execute(fallback_query, params)
-            produtos_rows = cursor.fetchall()
+                LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+                GROUP BY p.id
+                HAVING total_vendido > 0
+            )
+        """
+        cursor.execute(count_query)
+        total_items = cursor.fetchone()[0]
 
-        total_pages = (total_items + per_page -
-                       1) // per_page if per_page > 0 else 1
+        query = """
+            SELECT
+                p.id,
+                p.codigo,
+                p.nome,
+                c.nome as categoria_nome,
+                COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
+            FROM produto p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+            GROUP BY p.id, p.codigo, p.nome, c.nome
+            HAVING total_vendido > 0
+            ORDER BY total_vendido DESC, p.nome ASC
+            LIMIT ? OFFSET ?
+        """
+        params = (per_page, (page - 1) * per_page)
+        cursor.execute(query, params)
+        produtos_rows = cursor.fetchall()
+
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -1017,23 +978,11 @@ def relatorio_produtos_mais_vendidos():
                 "per_page": per_page,
             }
         )
-    except sqlite3.OperationalError as e:
-        if "no such table: item_venda" in str(e).lower():
-            return (
-                jsonify(
-                    {
-                        "error": "Funcionalidade indisponível: tabela 'item_venda' não encontrada."
-                    }
-                ),
-                501,
-            )  # Not Implemented
-        current_app.logger.error(
-            f"Erro de BD em mais-vendidos: {e}", exc_info=True)
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Erro de BD em mais-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
-        current_app.logger.error(
-            f"Erro inesperado em mais-vendidos: {e}", exc_info=True
-        )
+        current_app.logger.error(f"Erro inesperado em mais-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro inesperado no servidor."}), 500
     finally:
         if conn:
@@ -1044,7 +993,7 @@ def relatorio_produtos_mais_vendidos():
 @login_required
 @acesso_requerido(["admin", "gerente"])
 def relatorio_produtos_menos_vendidos():
-    """Retorna uma lista paginada dos produtos menos vendidos (incluindo os não vendidos)."""
+    """Retorna uma lista paginada dos produtos menos vendidos (desconsiderando os que têm total de vendas <= 0)."""
     conn = None
     try:
         conn = get_db()
@@ -1052,65 +1001,50 @@ def relatorio_produtos_menos_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        try:
-            count_query = """
-                SELECT COUNT(DISTINCT p.id)
+        count_query = """
+            SELECT COUNT(*) FROM (
+                SELECT p.id, COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
                 FROM produto p
-                INNER JOIN item_venda iv ON p.id = iv.produto_id
-            """
-            cursor.execute(count_query)
-            total_items = cursor.fetchone()[0]
-        except sqlite3.OperationalError as e:
-            if "no such table: item_venda" not in str(e).lower():
-                raise
-            count_query = """
-                SELECT COUNT(DISTINCT p.id)
-                FROM produto p
-                INNER JOIN estoque_movimentacao em ON p.id = em.produto_id
-                WHERE em.tipo = 'venda'
-            """
-            cursor.execute(count_query)
-            total_items = cursor.fetchone()[0]
-
-        total_pages = (total_items + per_page -
-                       1) // per_page if per_page > 0 else 1
-
-        try:
-            query = """
-                SELECT p.id, p.codigo, p.nome, c.nome as categoria_nome, COALESCE(SUM(iv.quantidade), 0) as total_vendido
-                FROM produto p
-                LEFT JOIN categoria c ON p.categoria_id = c.id
-                LEFT JOIN item_venda iv ON p.id = iv.produto_id
-                GROUP BY p.id, p.codigo, p.nome, c.nome
-                HAVING total_vendido > 0
-                ORDER BY total_vendido ASC, p.nome ASC
-                LIMIT ? OFFSET ?
-            """
-            params = (per_page, (page - 1) * per_page)
-            cursor.execute(query, params)
-            produtos_rows = cursor.fetchall()
-        except sqlite3.OperationalError as e:
-            if "no such table: item_venda" not in str(e).lower():
-                raise
-
-            fallback_query = """
-                SELECT
-                    p.id,
-                    p.codigo,
-                    p.nome,
-                    c.nome as categoria_nome,
-                    COALESCE(SUM(CASE WHEN em.tipo = 'venda' THEN ABS(em.quantidade) ELSE 0 END), 0) as total_vendido
-                FROM produto p
-                LEFT JOIN categoria c ON p.categoria_id = c.id
                 LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
-                GROUP BY p.id, p.codigo, p.nome, c.nome
+                GROUP BY p.id
                 HAVING total_vendido > 0
-                ORDER BY total_vendido ASC, p.nome ASC
-                LIMIT ? OFFSET ?
-            """
-            params = (per_page, (page - 1) * per_page)
-            cursor.execute(fallback_query, params)
-            produtos_rows = cursor.fetchall()
+            )
+        """
+        cursor.execute(count_query)
+        total_items = cursor.fetchone()[0]
+
+        query = """
+            SELECT
+                p.id,
+                p.codigo,
+                p.nome,
+                c.nome as categoria_nome,
+                COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
+            FROM produto p
+            LEFT JOIN categoria c ON p.categoria_id = c.id
+            LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+            GROUP BY p.id, p.codigo, p.nome, c.nome
+            HAVING total_vendido > 0
+            ORDER BY total_vendido ASC, p.nome ASC
+            LIMIT ? OFFSET ?
+        """
+        params = (per_page, (page - 1) * per_page)
+        cursor.execute(query, params)
+        produtos_rows = cursor.fetchall()
+
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -1121,14 +1055,11 @@ def relatorio_produtos_menos_vendidos():
                 "per_page": per_page,
             }
         )
-    except sqlite3.OperationalError as e:
-        current_app.logger.error(
-            f"Erro de BD em menos-vendidos: {e}", exc_info=True)
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Erro de BD em menos-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
-        current_app.logger.error(
-            f"Erro inesperado em menos-vendidos: {e}", exc_info=True
-        )
+        current_app.logger.error(f"Erro inesperado em menos-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro inesperado no servidor."}), 500
     finally:
         if conn:

@@ -87,6 +87,7 @@ function renderizarTabelaCategorias(categorias) {
         `;
         tabelaBody.innerHTML += row;
     });
+    inicializarDropdownsTabela();
 }
 
 /**

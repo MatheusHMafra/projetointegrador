@@ -2,6 +2,10 @@
 // axios.defaults.headers.post['Content-Type'] = 'application/json';
 
 let graficoMovimentacao;
+let graficoMaisVendidos;
+let graficoMenosVendidos;
+let graficoEntradasClassificacao;
+let graficoSaidasClassificacao;
 
 document.addEventListener("DOMContentLoaded", () => {
   configurarBuscaProdutosDashboard();
@@ -73,6 +77,9 @@ function carregarEstatisticas() {
       if (inativosEl && data.produtos_inativos !== undefined) {
         inativosEl.textContent = data.produtos_inativos || "0";
       }
+
+      criarGraficoClassificacao("graficoEntradasClassificacao", data.entradas_por_classificacao, true);
+      criarGraficoClassificacao("graficoSaidasClassificacao", data.saidas_por_classificacao, false);
     })
     .catch((error) => {
       console.error("Erro ao carregar estatísticas:", error.response ? error.response.data : error.message);
@@ -85,11 +92,6 @@ function carregarEstatisticas() {
 function carregarProdutosMaisVendidos() {
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_MAIS_VENDIDOS) {
     console.error("Erro de Configuração: API_ROUTES.PRODUTOS_MAIS_VENDIDOS não definido.");
-    const tabela = document.getElementById("mais-vendidos-tabela");
-    if (tabela) {
-      tabela.innerHTML =
-        '<tr><td colspan="3" class="text-center text-danger small">Erro de configuração (API).</td></tr>';
-    }
     return Promise.reject("PRODUTOS_MAIS_VENDIDOS não definido.");
   }
 
@@ -97,41 +99,62 @@ function carregarProdutosMaisVendidos() {
     .get(API_ROUTES.PRODUTOS_MAIS_VENDIDOS, { params: { per_page: 5 } })
     .then((response) => {
       const produtos = response.data.produtos || [];
-      const tabela = document.getElementById("mais-vendidos-tabela");
-      if (!tabela) return;
+      const canvas = document.getElementById("graficoMaisVendidos");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
 
-      tabela.innerHTML = "";
-      if (produtos.length > 0) {
-        produtos.forEach((produto) => {
-          tabela.innerHTML += `<tr>
-            <td><small>${produto.nome || produto.produto_nome || "N/A"}</small></td>
-            <td><small>${produto.categoria_nome || "N/A"}</small></td>
-            <td><small>${produto.total_vendido !== undefined ? produto.total_vendido : "N/A"}</small></td>
-          </tr>`;
-        });
-      } else {
-        tabela.innerHTML =
-          '<tr><td colspan="3" class="text-center small">Nenhum produto vendido recentemente.</td></tr>';
+      if (graficoMaisVendidos) {
+        graficoMaisVendidos.destroy();
       }
+
+      const labels = produtos.map(p => p.nome || p.produto_nome || "N/A");
+      const values = produtos.map(p => p.total_vendido || 0);
+
+      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
+      const barColor = theme === "dark" ? "#2ecc71" : "#28a745";
+      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+
+      graficoMaisVendidos = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Qtd. Vendida',
+            data: values,
+            backgroundColor: barColor,
+            borderRadius: 5,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: { color: fontColor, precision: 0 }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: fontColor }
+            }
+          }
+        }
+      });
     })
     .catch((error) => {
       console.error("Erro ao carregar produtos mais vendidos:", error.response ? error.response.data : error.message);
-      const tabela = document.getElementById("mais-vendidos-tabela");
-      if (tabela) {
-        tabela.innerHTML =
-          '<tr><td colspan="3" class="text-center text-danger small">Falha ao carregar dados.</td></tr>';
-      }
     });
 }
 
 function carregarProdutosMenosVendidos() {
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_MENOS_VENDIDOS) {
     console.error("Erro de Configuração: API_ROUTES.PRODUTOS_MENOS_VENDIDOS não definido.");
-    const tabela = document.getElementById("menos-vendidos-tabela");
-    if (tabela) {
-      tabela.innerHTML =
-        '<tr><td colspan="3" class="text-center text-danger small">Erro de configuração (API).</td></tr>';
-    }
     return Promise.reject("PRODUTOS_MENOS_VENDIDOS não definido.");
   }
 
@@ -139,30 +162,56 @@ function carregarProdutosMenosVendidos() {
     .get(API_ROUTES.PRODUTOS_MENOS_VENDIDOS, { params: { per_page: 5 } })
     .then((response) => {
       const produtos = response.data.produtos || [];
-      const tabela = document.getElementById("menos-vendidos-tabela");
-      if (!tabela) return;
+      const canvas = document.getElementById("graficoMenosVendidos");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
 
-      tabela.innerHTML = "";
-      if (produtos.length > 0) {
-        produtos.forEach((produto) => {
-          tabela.innerHTML += `<tr>
-            <td><small>${produto.nome || produto.produto_nome || "N/A"}</small></td>
-            <td><small>${produto.categoria_nome || "N/A"}</small></td>
-            <td><small>${produto.total_vendido !== undefined ? produto.total_vendido : "N/A"}</small></td>
-          </tr>`;
-        });
-      } else {
-        tabela.innerHTML =
-          '<tr><td colspan="3" class="text-center small">Nenhum dado de produtos menos vendidos.</td></tr>';
+      if (graficoMenosVendidos) {
+        graficoMenosVendidos.destroy();
       }
+
+      const labels = produtos.map(p => p.nome || p.produto_nome || "N/A");
+      const values = produtos.map(p => p.total_vendido || 0);
+
+      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
+      const barColor = theme === "dark" ? "#e74c3c" : "#dc3545";
+      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+
+      graficoMenosVendidos = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Qtd. Vendida',
+            data: values,
+            backgroundColor: barColor,
+            borderRadius: 5,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: { color: fontColor, precision: 0 }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: fontColor }
+            }
+          }
+        }
+      });
     })
     .catch((error) => {
       console.error("Erro ao carregar produtos menos vendidos:", error.response ? error.response.data : error.message);
-      const tabela = document.getElementById("menos-vendidos-tabela");
-      if (tabela) {
-        tabela.innerHTML =
-          '<tr><td colspan="3" class="text-center text-danger small">Falha ao carregar dados.</td></tr>';
-      }
     });
 }
 
@@ -268,9 +317,100 @@ function criarGraficoMovimentacao() {
 }
 
 function atualizarTemaGraficos() {
-  if (document.getElementById("graficoMovimentacao")) {
-    criarGraficoMovimentacao();
+  criarGraficoMovimentacao();
+  carregarProdutosMaisVendidos();
+  carregarProdutosMenosVendidos();
+  carregarEstatisticas();
+}
+
+function criarGraficoClassificacao(canvasId, dados, isEntrada) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  if (canvasId === "graficoEntradasClassificacao" && graficoEntradasClassificacao) {
+    graficoEntradasClassificacao.destroy();
   }
+  if (canvasId === "graficoSaidasClassificacao" && graficoSaidasClassificacao) {
+    graficoSaidasClassificacao.destroy();
+  }
+
+  const theme = document.documentElement.getAttribute("data-theme") || "dark";
+  const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
+
+  const mapLabels = isEntrada ? {
+    'reposicao': 'Reposição',
+    'devolucao': 'Devolução Cliente',
+    'outro': 'Outro Motivo'
+  } : {
+    'venda': 'Venda',
+    'roubo': 'Roubo',
+    'dano': 'Dano / Avaria',
+    'devolucao_fornecedor': 'Devol. Fornecedor',
+    'descarte': 'Descarte',
+    'outro': 'Outro Motivo'
+  };
+
+  const colors = isEntrada ? [
+    '#2ecc71', // green
+    '#3498db', // blue
+    '#95a5a6'  // grey
+  ] : [
+    '#f1c40f', // yellow (venda)
+    '#e74c3c', // red (roubo)
+    '#e67e22', // orange (dano)
+    '#9b59b6', // purple (devolucao_fornecedor)
+    '#d35400', // pumpkin (descarte)
+    '#95a5a6'  // grey (outro)
+  ];
+
+  const labels = [];
+  const values = [];
+  
+  Object.keys(dados || {}).forEach(key => {
+    labels.push(mapLabels[key] || key);
+    values.push(dados[key] || 0);
+  });
+
+  if (labels.length === 0) {
+    labels.push("Nenhuma movimentação");
+    values.push(0);
+  }
+
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors.slice(0, labels.length),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: fontColor, boxWidth: 12 }
+        }
+      }
+    }
+  });
+
+  if (canvasId === "graficoEntradasClassificacao") {
+    graficoEntradasClassificacao = chart;
+  } else {
+    graficoSaidasClassificacao = chart;
+  }
+}
+
+function atualizarDadosDashboard() {
+  carregarEstatisticas();
+  criarGraficoMovimentacao();
+  carregarProdutosMaisVendidos();
+  carregarProdutosMenosVendidos();
 }
 
 function configurarFormulariosDashboard() {
@@ -433,7 +573,7 @@ function submeterEntradaProduto() {
       const modal = bootstrap.Modal.getInstance(document.getElementById("modalEntradaProduto"));
       if (modal) modal.hide();
       document.getElementById("formEntradaProduto")?.reset();
-      carregarEstatisticas();
+      atualizarDadosDashboard();
     })
     .catch((error) => {
       showNotification(error.response?.data?.error || "Erro ao registrar entrada.", "danger");
@@ -472,7 +612,7 @@ function submeterSaidaProduto() {
       const modal = bootstrap.Modal.getInstance(document.getElementById("modalSaidaProduto"));
       if (modal) modal.hide();
       document.getElementById("formSaidaProduto")?.reset();
-      carregarEstatisticas();
+      atualizarDadosDashboard();
     })
     .catch((error) => {
       showNotification(error.response?.data?.error || "Erro ao registrar saída.", "danger");

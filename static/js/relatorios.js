@@ -21,6 +21,8 @@ function inicializarFormRelatorios() {
                 document.querySelectorAll('.sales-option').forEach(el => el.style.display = 'block');
             } else if (val === 'estoque') {
                 document.querySelectorAll('.stock-option').forEach(el => el.style.display = 'block');
+            } else if (val === 'fornecedores') {
+                document.querySelectorAll('.supplier-option').forEach(el => el.style.display = 'block');
             }
         });
     }
@@ -66,6 +68,20 @@ function gerarRelatorio() {
             .catch(error => {
                 console.error('Erro ao gerar relatório de estoque:', error);
                 showNotification('Falha ao gerar relatório de estoque.', 'danger');
+            })
+            .finally(() => {
+                toggleLoading(false);
+            });
+    } else if (reportType === 'fornecedores') {
+        const status = document.getElementById('supplier-status').value;
+        axios.get('/relatorios/fornecedores/resumo', { params: { status, per_page: 500 } })
+            .then(response => {
+                const data = response.data;
+                renderizarRelatorioFornecedores(data, status);
+            })
+            .catch(error => {
+                console.error('Erro ao gerar relatório de fornecedores:', error);
+                showNotification('Falha ao gerar relatório de fornecedores.', 'danger');
             })
             .finally(() => {
                 toggleLoading(false);
@@ -242,6 +258,63 @@ function renderizarRelatorioEstoque(data, statusFiltro) {
                     <td>${item.fornecedor_nome || 'N/A'}</td>
                     <td class="text-center">${item.estoque_minimo}</td>
                     <td class="text-center fw-bold">${item.estoque}</td>
+                    <td class="text-center">${statusBadge}</td>
+                </tr>
+            `;
+        });
+    }
+    html += `</tbody></table></div>`;
+
+    container.innerHTML = html;
+    outputCard.style.display = 'block';
+}
+
+function renderizarRelatorioFornecedores(data, statusFiltro) {
+    const outputCard = document.getElementById('report-output-card');
+    const container = document.getElementById('report-content');
+    const printTitle = document.getElementById('print-report-title');
+
+    let statusLabel = 'Todos';
+    if (statusFiltro === 'ativos') statusLabel = 'Apenas Ativos';
+    else if (statusFiltro === 'inativos') statusLabel = 'Apenas Inativos';
+
+    printTitle.textContent = `Relatório de Resumo de Fornecedores (${statusLabel})`;
+    container.innerHTML = '';
+
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Fornecedor</th>
+                        <th>CNPJ</th>
+                        <th>Telefone / E-mail</th>
+                        <th class="text-center">Total Produtos</th>
+                        <th class="text-center">Total Estoque</th>
+                        <th class="text-end">Valor Total em Estoque</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    const fornecedores = data.fornecedores_resumo || [];
+    if (fornecedores.length === 0) {
+        html += `<tr><td colspan="7" class="text-center text-muted">Nenhum fornecedor encontrado com os filtros atuais.</td></tr>`;
+    } else {
+        fornecedores.forEach(item => {
+            const statusBadge = item.ativo ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>';
+            const valorEstoqueFmt = `R$ ${parseFloat(item.valor_total_estoque || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const contatoInfo = [item.telefone, item.email].filter(Boolean).join(' / ') || '-';
+
+            html += `
+                <tr>
+                    <td class="fw-bold">${item.fornecedor_nome}</td>
+                    <td>${item.cnpj || '-'}</td>
+                    <td>${contatoInfo}</td>
+                    <td class="text-center">${item.total_produtos}</td>
+                    <td class="text-center">${item.total_estoque}</td>
+                    <td class="text-end fw-bold">${valorEstoqueFmt}</td>
                     <td class="text-center">${statusBadge}</td>
                 </tr>
             `;
