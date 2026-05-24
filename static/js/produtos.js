@@ -196,8 +196,10 @@ function renderizarTabelaProdutos(produtos) {
 
     tabelaBody.innerHTML = ''; // Limpar tabela
 
+    const colspanVal = canManageProduto ? 10 : 9;
+
     if (produtos.length === 0) {
-        tabelaBody.innerHTML = `<tr><td colspan="10" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
+        tabelaBody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
         return;
     }
 
@@ -232,17 +234,7 @@ function renderizarTabelaProdutos(produtos) {
             ? '<li><hr class="dropdown-divider"></li>'
             : '';
 
-        const row = `
-            <tr>
-                <td>${produto.codigo || '-'}</td>
-                <td>${produto.nome}</td>
-                <td>${produto.categoria_nome || produto.categoria?.nome || 'N/A'}</td>
-                <td>${produto.fornecedor_nome || produto.fornecedor?.nome || 'N/A'}</td>
-                <td>${precoCompraFmt}</td>
-                <td>${precoVendaFmt}</td>
-                <td class="${estoqueClasse}">${produto.estoque}</td>
-                <td>${produto.estoque_minimo}</td>
-                <td><span class="badge bg-${statusBadgeClass}">${statusBadgeText}</span></td>
+        const actionsTd = canManageProduto ? `
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
@@ -254,7 +246,20 @@ function renderizarTabelaProdutos(produtos) {
                             ${actionToggleStatus}
                         </ul>
                     </div>
-                </td>
+                </td>` : '';
+
+        const row = `
+            <tr>
+                <td>${produto.codigo || '-'}</td>
+                <td>${produto.nome}</td>
+                <td>${produto.categoria_nome || produto.categoria?.nome || 'N/A'}</td>
+                <td>${produto.fornecedor_nome || produto.fornecedor?.nome || 'N/A'}</td>
+                <td>${precoCompraFmt}</td>
+                <td>${precoVendaFmt}</td>
+                <td class="${estoqueClasse}">${produto.estoque}</td>
+                <td>${produto.estoque_minimo}</td>
+                <td><span class="badge bg-${statusBadgeClass}">${statusBadgeText}</span></td>
+                ${actionsTd}
             </tr>
         `;
         tabelaBody.innerHTML += row;
@@ -517,6 +522,28 @@ function submeterFormularioAdicionarProduto() {
         toggleLoading(false);
         return;
     }
+
+    if (dadosProduto.preco_compra !== null && dadosProduto.preco_compra <= 0) {
+        showNotification('O preço de compra deve ser maior que zero.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+    if (dadosProduto.preco <= 0) {
+        showNotification('O preço de venda deve ser maior que zero.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+    if (dadosProduto.estoque < 0) {
+        showNotification('O estoque não pode ser negativo.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+    if (dadosProduto.estoque_minimo < 0) {
+        showNotification('O estoque mínimo não pode ser negativo.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+
     // Adicionar validação de código único aqui ou deixar para o backend
     // if (!dadosProduto.codigo) { /* ... */ }
 
@@ -626,6 +653,22 @@ function submeterFormularioEditarProduto() {
     
     if (!dadosProdutoAtualizado.nome || !dadosProdutoAtualizado.categoria_id || !dadosProdutoAtualizado.preco) {
         showNotification('Nome, Categoria e Preço de Venda são obrigatórios.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+
+    if (dadosProdutoAtualizado.preco_compra !== null && dadosProdutoAtualizado.preco_compra <= 0) {
+        showNotification('O preço de compra deve ser maior que zero.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+    if (dadosProdutoAtualizado.preco <= 0) {
+        showNotification('O preço de venda deve ser maior que zero.', 'warning');
+        toggleLoading(false);
+        return;
+    }
+    if (dadosProdutoAtualizado.estoque_minimo < 0) {
+        showNotification('O estoque mínimo não pode ser negativo.', 'warning');
         toggleLoading(false);
         return;
     }

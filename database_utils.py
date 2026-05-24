@@ -572,8 +572,9 @@ def buscar_produtos(
         where_clauses = []
         params = []
 
-        if not incluir_inativos:
-
+        if incluir_inativos:
+            where_clauses.append("COALESCE(p.ativo, 1) = 0")
+        else:
             where_clauses.append("COALESCE(p.ativo, 1) = 1")
 
         if termo:

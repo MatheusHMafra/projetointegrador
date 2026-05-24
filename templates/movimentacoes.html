@@ -48,11 +48,6 @@
                             <span>{{ session.nome_usuario if session.nome_usuario else 'Usuário' }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
                                         class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
                         </ul>
@@ -75,13 +70,17 @@
                     <div class="card-body">
                         <form id="filtros-movimentacoes-form" class="row g-3">
                             <div class="col-md-3">
-                                <label for="filtro-tipo" class="form-label">Tipo de Movimento</label>
-                                <select id="filtro-tipo" name="tipo" class="form-select">
-                                    <option value="">Todos os Tipos</option>
-                                    <option value="entrada">Entrada</option>
-                                    <option value="saida">Saída</option>
-                                    <option value="ajuste">Ajuste</option>
+                                <label for="filtro-classificacao" class="form-label">Classificação</label>
+                                <select id="filtro-classificacao" name="classificacao" class="form-select">
+                                    <option value="">Todas as Classificações</option>
+                                    <option value="compra">Compra</option>
+                                    <option value="devolucao">Devolução Cliente</option>
                                     <option value="venda">Venda</option>
+                                    <option value="roubo">Roubo</option>
+                                    <option value="dano">Dano / Avaria</option>
+                                    <option value="devolucao_fornecedor">Devol. Fornecedor</option>
+                                    <option value="descarte">Descarte</option>
+                                    <option value="outro">Outro Motivo</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -125,12 +124,11 @@
                                         <th>Data / Hora</th>
                                         <th>Usuário</th>
                                         <th>Observação</th>
-                                        <th>Venda Cód.</th>
                                     </tr>
                                 </thead>
                                 <tbody id="movimentacoes-tabela-corpo">
                                     <tr>
-                                        <td colspan="11" class="text-center py-4 text-muted">
+                                        <td colspan="10" class="text-center py-4 text-muted">
                                             Carregando movimentações...
                                         </td>
                                     </tr>
@@ -160,6 +158,24 @@
                         </div>
                     </div>
                 </footer>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Observação -->
+    <div class="modal fade" id="modalObservacao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Observação do Registro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="textoObservacao" class="text-break"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
             </div>
         </div>
     </div>

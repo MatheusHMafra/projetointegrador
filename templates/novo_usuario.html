@@ -26,7 +26,6 @@
                             <span>{{ session.user_name if session.user_name else 'Usuário' }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.alterar_senha') }}"><i
                                         class="fas fa-key me-2"></i> Alterar Senha</a></li>
                             <li>

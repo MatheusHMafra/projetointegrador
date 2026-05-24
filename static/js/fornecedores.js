@@ -164,8 +164,10 @@ function renderizarTabelaFornecedores(listaFornecedores) {
 
     tabela.innerHTML = ''; // Limpar tabela
 
+    const colspanVal = canManageFornecedor ? 7 : 6;
+
     if (listaFornecedores.length === 0) {
-        tabela.innerHTML = `<tr><td colspan="7" class="text-center">Nenhum fornecedor encontrado.</td></tr>`;
+        tabela.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center">Nenhum fornecedor encontrado.</td></tr>`;
         return;
     }
 
@@ -216,14 +218,7 @@ function renderizarTabelaFornecedores(listaFornecedores) {
             ? '<li><hr class="dropdown-divider"></li>'
             : '';
 
-        tabela.innerHTML += `
-            <tr>
-                <td>${fornecedor.nome}</td>
-                <td>${fornecedor.cnpj || '-'}</td>
-                <td>${fornecedor.contato || '-'}</td>
-                <td>${fornecedor.telefone || '-'}</td>
-                <td>${fornecedor.email || '-'}</td>
-                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+        const actionsTd = canManageFornecedor ? `
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
@@ -237,7 +232,17 @@ function renderizarTabelaFornecedores(listaFornecedores) {
                             ${actionDanger}
                         </ul>
                     </div>
-                </td>
+                </td>` : '';
+
+        tabela.innerHTML += `
+            <tr>
+                <td>${fornecedor.nome}</td>
+                <td>${fornecedor.cnpj || '-'}</td>
+                <td>${fornecedor.contato || '-'}</td>
+                <td>${fornecedor.telefone || '-'}</td>
+                <td>${fornecedor.email || '-'}</td>
+                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                ${actionsTd}
             </tr>
         `;
     });
@@ -297,7 +302,21 @@ function adicionarFornecedor() {
     const observacoes = document.getElementById('observacoesFornecedor').value.trim();
 
     // Validação já feita pelo required do HTML, mas pode adicionar mais aqui se necessário
-    // if (!nome) { ... }
+    if (cnpj) {
+        const cleanCnpj = cnpj.replace(/\D/g, '');
+        if (cleanCnpj.length !== 14) {
+            showNotification('O CNPJ deve conter exatamente 14 dígitos.', 'warning');
+            return;
+        }
+    }
+
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showNotification('Formato de e-mail inválido.', 'warning');
+            return;
+        }
+    }
 
     toggleLoading(true);
 
@@ -391,6 +410,22 @@ function atualizarFornecedor() {
     if (!nome) {
         showNotification('O nome do fornecedor é obrigatório', 'warning');
         return;
+    }
+
+    if (cnpj) {
+        const cleanCnpj = cnpj.replace(/\D/g, '');
+        if (cleanCnpj.length !== 14) {
+            showNotification('O CNPJ deve conter exatamente 14 dígitos.', 'warning');
+            return;
+        }
+    }
+
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showNotification('Formato de e-mail inválido.', 'warning');
+            return;
+        }
     }
 
     toggleLoading(true);

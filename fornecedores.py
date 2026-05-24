@@ -164,6 +164,14 @@ def gerenciar_todos_fornecedores():
             observacoes = data.get("observacoes", "").strip() or None
             ativo = bool(data.get("ativo", True))  # Padrão para ativo
 
+            import re
+            if email and not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+                return jsonify({"error": "E-mail com formato inválido."}), 400
+            if cnpj:
+                cnpj_limpo = re.sub(r"\D", "", cnpj)
+                if len(cnpj_limpo) != 14:
+                    return jsonify({"error": "CNPJ deve conter exatamente 14 dígitos."}), 400
+
             # Verificar se CNPJ já existe, se fornecido
             if cnpj:
                 # Corrected table name
@@ -291,6 +299,17 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
 
             for field in allowed_to_update:
                 if field in data:
+                    if field == "email" and data[field]:
+                        import re
+                        if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", data[field]):
+                            return jsonify({"error": "E-mail com formato inválido."}), 400
+
+                    if field == "cnpj" and data[field]:
+                        import re
+                        cnpj_limpo = re.sub(r"\D", "", data[field])
+                        if len(cnpj_limpo) != 14:
+                            return jsonify({"error": "CNPJ deve conter exatamente 14 dígitos."}), 400
+
                     # Validação específica para CNPJ (se diferente do atual)
                     if (
                         field == "cnpj"

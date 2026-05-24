@@ -202,6 +202,7 @@ def login():
         # Corrigido: Acessando colunas usando notação de dicionário e garantindo o armazenamento correto do nivel_acesso
         session["user_id"] = usuario["id"]
         session["user_name"] = usuario["nome"]
+        session["nome_usuario"] = usuario["nome"]
         # Garantir que este valor é armazenado corretamente
         session["user_level"] = usuario["nivel_acesso"]
         session["user_email"] = usuario["email"]

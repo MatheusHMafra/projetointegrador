@@ -42,11 +42,6 @@
                             <span>{{ session.user_name }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
                                         class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
                         </ul>
@@ -140,10 +135,12 @@
                                     <p>Valor em Estoque <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Calculado como a soma de (Estoque * Preço de Compra) dos produtos ativos com preço e estoque maiores que zero."></i></p>
                                 </div>
                             </div>
+                            {% if session.user_level in ['admin', 'gerente'] %}
                             <div class="stats-footer">
                                 <a href="{{ url_for('relatorios.relatorios_page') }}">Ver detalhes <i
                                         class="fas fa-arrow-right"></i></a>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -248,9 +245,6 @@
                                             </div>
                                         </a>
                                     </div>
-                                    {% endif %}
-
-                                    {% if session.user_level in ['admin', 'gerente', 'operador'] %}
                                     <div class="col-12 col-sm-6 col-md-3">
                                         <!-- Botão abre modal Entrada -->
                                         <a href="#" class="action-card" data-bs-toggle="modal"
@@ -264,6 +258,9 @@
                                             </div>
                                         </a>
                                     </div>
+                                    {% endif %}
+
+                                    {% if session.user_level in ['admin', 'gerente', 'operador'] %}
                                     <div class="col-12 col-sm-6 col-md-3">
                                         <!-- Botão abre modal Saída -->
                                         <a href="#" class="action-card" data-bs-toggle="modal"
@@ -329,12 +326,24 @@
                     <form id="formAdicionarProduto">
                         <div class="row">
                             <div class="col-md-6 mb-3">
+                                <label for="codigoProduto" class="form-label">Código</label>
+                                <input type="text" class="form-control" id="codigoProduto" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label for="nomeProduto" class="form-label">Nome</label>
                                 <input type="text" class="form-control" id="nomeProduto" required>
                             </div>
+                        </div>
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="categoriaProduto" class="form-label">Categoria</label>
                                 <select class="form-select" id="categoriaProduto" required>
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="fornecedorProduto" class="form-label">Fornecedor</label>
+                                <select class="form-select" id="fornecedorProduto" required>
                                     <option value="">Selecione...</option>
                                 </select>
                             </div>
@@ -353,18 +362,18 @@
                                 <div class="input-group">
                                     <span class="input-group-text">R$</span>
                                     <input type="number" step="0.01" min="0" class="form-control"
-                                        id="precoCompraProduto">
+                                        id="precoCompraProduto" required>
                                 </div>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="estoqueProduto" class="form-label">Estoque Inicial</label>
-                                <input type="number" min="0" class="form-control" id="estoqueProduto" value="0">
+                                <input type="number" min="0" class="form-control" id="estoqueProduto" value="0" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="estoqueMinimoProduto" class="form-label">Estoque Mínimo</label>
-                                <input type="number" min="0" class="form-control" id="estoqueMinimoProduto" value="5">
+                                <input type="number" min="0" class="form-control" id="estoqueMinimoProduto" value="5" required>
                             </div>
                         </div>
                         <div class="mb-3">

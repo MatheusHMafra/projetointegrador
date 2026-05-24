@@ -5,6 +5,8 @@
 
 // Estado da página
 let currentSearchTermCategorias = '';
+const userLevelCategorias = (window.currentUserInfo?.level || '').toLowerCase();
+const canManageCategorias = ['admin', 'gerente'].includes(userLevelCategorias);
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,7 +32,8 @@ function carregarCategorias() {
         .catch(error => {
             console.error('Erro ao carregar categorias:', error.response ? error.response.data : error.message);
             showNotification('Falha ao carregar lista de categorias.', 'danger');
-            document.getElementById('categorias-tabela').innerHTML = `<tr><td colspan="4" class="text-center text-danger">Erro ao carregar categorias.</td></tr>`;
+            const colspanVal = canManageCategorias ? 4 : 3;
+            document.getElementById('categorias-tabela').innerHTML = `<tr><td colspan="${colspanVal}" class="text-center text-danger">Erro ao carregar categorias.</td></tr>`;
         })
         .finally(() => {
             toggleLoading(false);
@@ -53,17 +56,15 @@ function renderizarTabelaCategorias(categorias) {
         : categorias;
 
 
+    const colspanVal = canManageCategorias ? 4 : 3;
+
     if (categoriasFiltradas.length === 0) {
-        tabelaBody.innerHTML = `<tr><td colspan="4" class="text-center">Nenhuma categoria encontrada.</td></tr>`;
+        tabelaBody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center">Nenhuma categoria encontrada.</td></tr>`;
         return;
     }
 
     categoriasFiltradas.forEach(categoria => {
-        const row = `
-            <tr>
-                <td>${categoria.nome}</td>
-                <td>${categoria.descricao || '-'}</td>
-                <td>${categoria.total_produtos !== undefined ? categoria.total_produtos : 'N/A'}</td>
+        const actionsTd = canManageCategorias ? `
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
@@ -82,7 +83,14 @@ function renderizarTabelaCategorias(categorias) {
                             </li>
                         </ul>
                     </div>
-                </td>
+                </td>` : '';
+
+        const row = `
+            <tr>
+                <td>${categoria.nome}</td>
+                <td>${categoria.descricao || '-'}</td>
+                <td>${categoria.total_produtos !== undefined ? categoria.total_produtos : 'N/A'}</td>
+                ${actionsTd}
             </tr>
         `;
         tabelaBody.innerHTML += row;

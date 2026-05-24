@@ -86,6 +86,32 @@ function gerarRelatorio() {
             .finally(() => {
                 toggleLoading(false);
             });
+    } else if (reportType === 'fornecedores_produtos') {
+        axios.get('/relatorios/fornecedores/produtos')
+            .then(response => {
+                const data = response.data;
+                renderizarRelatorioProdutosPorFornecedor(data);
+            })
+            .catch(error => {
+                console.error('Erro ao gerar relatório de produtos por fornecedor:', error);
+                showNotification('Falha ao gerar relatório de produtos por fornecedor.', 'danger');
+            })
+            .finally(() => {
+                toggleLoading(false);
+            });
+    } else if (reportType === 'vendas_operadores') {
+        axios.get('/relatorios/vendas/operadores')
+            .then(response => {
+                const data = response.data;
+                renderizarRelatorioVendasPorOperador(data);
+            })
+            .catch(error => {
+                console.error('Erro ao gerar relatório de vendas por operador:', error);
+                showNotification('Falha ao gerar relatório de vendas por operador.', 'danger');
+            })
+            .finally(() => {
+                toggleLoading(false);
+            });
     }
 }
 
@@ -328,4 +354,120 @@ function renderizarRelatorioFornecedores(data, statusFiltro) {
 
 function imprimirRelatorio() {
     window.print();
+}
+
+function renderizarRelatorioProdutosPorFornecedor(data) {
+    const outputCard = document.getElementById('report-output-card');
+    const container = document.getElementById('report-content');
+    const printTitle = document.getElementById('print-report-title');
+
+    printTitle.textContent = 'Relatório de Produtos por Fornecedor';
+    container.innerHTML = '';
+
+    if (data.length === 0) {
+        container.innerHTML = '<div class="alert alert-info text-center">Nenhum fornecedor ou produto encontrado.</div>';
+        outputCard.style.display = 'block';
+        return;
+    }
+
+    let html = '';
+    data.forEach(forn => {
+        html += `
+            <div class="mb-4">
+                <h5 class="text-primary border-bottom pb-2 mt-3">
+                    <i class="fas fa-truck me-2"></i>${forn.nome} 
+                    <small class="text-muted fs-6 ms-2">(CNPJ: ${forn.cnpj || '-'})</small>
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Produto</th>
+                                <th class="text-end">Preço Compra</th>
+                                <th class="text-end">Preço Venda</th>
+                                <th class="text-center">Estoque</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        if (forn.produtos.length === 0) {
+            html += `<tr><td colspan="6" class="text-center text-muted">Nenhum produto cadastrado para este fornecedor.</td></tr>`;
+        } else {
+            forn.produtos.forEach(prod => {
+                const statusBadge = prod.ativo ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-danger">Inativo</span>';
+                const precoCompraFmt = prod.preco_compra ? `R$ ${parseFloat(prod.preco_compra).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+                const precoVendaFmt = prod.preco ? `R$ ${parseFloat(prod.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+                html += `
+                    <tr>
+                        <td>${prod.codigo || '-'}</td>
+                        <td class="fw-bold">${prod.nome}</td>
+                        <td class="text-end">${precoCompraFmt}</td>
+                        <td class="text-end">${precoVendaFmt}</td>
+                        <td class="text-center">${prod.estoque}</td>
+                        <td class="text-center">${statusBadge}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+    outputCard.style.display = 'block';
+}
+
+function renderizarRelatorioVendasPorOperador(data) {
+    const outputCard = document.getElementById('report-output-card');
+    const container = document.getElementById('report-content');
+    const printTitle = document.getElementById('print-report-title');
+
+    printTitle.textContent = 'Relatório de Vendas por Operador';
+    container.innerHTML = '';
+
+    let html = `
+        <div class="table-responsive mt-3">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Operador</th>
+                        <th>Nível de Acesso</th>
+                        <th class="text-center">Itens Vendidos</th>
+                        <th class="text-center">Itens Devolvidos</th>
+                        <th class="text-end">Receita Líquida</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    if (data.length === 0) {
+        html += `<tr><td colspan="5" class="text-center text-muted">Nenhuma venda registrada para os operadores.</td></tr>`;
+    } else {
+        data.forEach(item => {
+            const receitaFmt = `R$ ${parseFloat(item.receita_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const nivelFmt = item.usuario_nivel ? item.usuario_nivel.toUpperCase() : '-';
+            html += `
+                <tr>
+                    <td class="fw-bold">${item.usuario_nome} <small class="text-muted d-block">${item.usuario_email}</small></td>
+                    <td>${nivelFmt}</td>
+                    <td class="text-center text-success fw-bold">${item.total_itens_vendidos || 0}</td>
+                    <td class="text-center text-danger">${item.total_itens_devolvidos || 0}</td>
+                    <td class="text-end fw-bold">${receitaFmt}</td>
+                </tr>
+            `;
+        });
+    }
+
+    html += `</tbody></table></div>`;
+
+    container.innerHTML = html;
+    outputCard.style.display = 'block';
 }

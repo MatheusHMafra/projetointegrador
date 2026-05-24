@@ -89,8 +89,8 @@ def entrada_produto():
 # API para saída de produtos do estoque
 @estoque_bp.route("/saida", methods=["POST"])
 @login_required
-# Apenas admin ou gerente podem registrar saída
-@acesso_requerido(["admin", "gerente"])
+# Admin, gerente ou operador podem registrar saída
+@acesso_requerido(["admin", "gerente", "operador"])
 def saida_produto():
     """Registra uma saída de produto do estoque."""
     data = request.json
@@ -226,6 +226,7 @@ def listar_movimentacoes():
     per_page = request.args.get("per_page", 20, type=int)
     produto_id_filter = request.args.get("produto_id", type=int)
     tipo_filter = request.args.get("tipo")
+    classificacao_filter = request.args.get("classificacao")
     data_inicio_filter = request.args.get("data_inicio")  # Formato YYYY-MM-DD
     data_fim_filter = request.args.get("data_fim")  # Formato YYYY-MM-DD
 
@@ -257,6 +258,9 @@ def listar_movimentacoes():
         if tipo_filter:
             conditions.append("m.tipo = ?")
             params.append(tipo_filter)
+        if classificacao_filter:
+            conditions.append("m.classificacao = ?")
+            params.append(classificacao_filter)
         if data_inicio_filter:
             try:
                 # Adicionar T00:00:00 para incluir o dia inteiro

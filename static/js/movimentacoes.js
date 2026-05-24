@@ -80,12 +80,12 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
                 montarPaginacaoMovimentacoes(data.total, data.pages, data.page, data.per_page);
                 if (data.movimentacoes.length === 0 && placeholder) {
                     placeholder.textContent = 'Nenhuma movimentação encontrada para os filtros aplicados.';
-                    tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center">${placeholder.textContent}</td></tr>`;
+                    tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center">${placeholder.textContent}</td></tr>`;
                 }
                  if (paginacaoNav) paginacaoNav.style.display = data.movimentacoes.length > 0 ? 'block' : 'none';
             } else {
                  if (placeholder) placeholder.textContent = 'Não foi possível carregar as movimentações.';
-                 if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center">${placeholder.textContent}</td></tr>`;
+                 if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center">${placeholder.textContent}</td></tr>`;
             }
         })
         .catch(error => {
@@ -93,7 +93,7 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
             const errorMsg = error.response?.data?.error || 'Falha ao carregar movimentações.';
             showNotification(errorMsg, 'danger');
             if (placeholder) placeholder.textContent = errorMsg;
-            if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center text-danger">${errorMsg}</td></tr>`;
+            if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center text-danger">${errorMsg}</td></tr>`;
         })
         .finally(() => {
             toggleLoading(false);
@@ -121,7 +121,7 @@ function montarTabelaMovimentacoes(movimentacoes) {
     tabelaCorpo.innerHTML = ''; // Limpar antes de adicionar
 
     if (movimentacoes.length === 0) {
-        tabelaCorpo.innerHTML = '<tr><td colspan="11" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
+        tabelaCorpo.innerHTML = '<tr><td colspan="10" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
         return;
     }
 
@@ -140,9 +140,26 @@ function montarTabelaMovimentacoes(movimentacoes) {
             <td>${mov.estoque_atual !== null ? mov.estoque_atual : 'N/A'}</td>
             <td>${mov.data || 'N/A'}</td>
             <td>${mov.usuario ? mov.usuario.nome || 'Sistema' : 'Sistema'}</td>
-            <td class="text-truncate" style="max-width: 150px;" title="${mov.observacao || ''}">${mov.observacao || '-'}</td>
-            <td>${mov.venda_codigo || '-'}</td>
         `;
+
+        const tdObs = document.createElement('td');
+        if (mov.observacao) {
+            tdObs.innerHTML = `
+                <div class="d-flex align-items-center gap-1">
+                    <span class="text-truncate" style="max-width: 150px;">${mov.observacao}</span>
+                    <button class="btn btn-xs btn-outline-primary py-0 px-1 btn-ver-obs" style="font-size: 0.75rem;" title="Ver Observação Completa">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            `;
+            tdObs.querySelector('.btn-ver-obs').addEventListener('click', () => {
+                mostrarPopupObservacao(mov.observacao);
+            });
+        } else {
+            tdObs.textContent = '-';
+        }
+        tr.appendChild(tdObs);
+
         tabelaCorpo.appendChild(tr);
     });
 }
@@ -239,17 +256,6 @@ function montarPaginacaoMovimentacoes(totalItems, totalPages, currentPage, items
 function configurarFiltrosMovimentacoes() {
     const formFiltros = document.getElementById('filtros-movimentacoes-form');
     const btnLimparFiltros = document.getElementById('limpar-filtros');
-    const produtoInput = document.getElementById('filtro-produto');
-    let debounceTimeout;
-
-    if (produtoInput) {
-        produtoInput.addEventListener('input', () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                carregarMovimentacoes(1, getCurrentFiltersMov());
-            }, 500);
-        });
-    }
 
     if (formFiltros) {
         formFiltros.addEventListener('submit', (event) => {
@@ -261,7 +267,6 @@ function configurarFiltrosMovimentacoes() {
     if (btnLimparFiltros) {
         btnLimparFiltros.addEventListener('click', () => {
             if (formFiltros) formFiltros.reset();
-            if (produtoInput) produtoInput.value = '';
             carregarMovimentacoes(1, {}); // Carrega sem filtros
         });
     }
@@ -273,19 +278,12 @@ function configurarFiltrosMovimentacoes() {
  */
 function getCurrentFiltersMov() {
     const filtros = {};
-    const produtoInput = document.getElementById('filtro-produto');
-    const tipoSelect = document.getElementById('filtro-tipo');
+    const classificacaoSelect = document.getElementById('filtro-classificacao');
     const dataInicioInput = document.getElementById('filtro-data-inicio');
     const dataFimInput = document.getElementById('filtro-data-fim');
 
-    if (produtoInput && produtoInput.value.trim()) {
-        // A API espera 'produto_id'. Se o usuário digitar um nome, precisaria de uma busca de ID.
-        // Por ora, se for número, envia como produto_id. Se for texto, o backend precisaria tratar.
-        // A lógica de tratamento está em carregarMovimentacoes. Aqui só coletamos.
-        filtros.produto_id_ou_nome = produtoInput.value.trim();
-    }
-    if (tipoSelect && tipoSelect.value) {
-        filtros.tipo = tipoSelect.value;
+    if (classificacaoSelect && classificacaoSelect.value) {
+        filtros.classificacao = classificacaoSelect.value;
     }
     if (dataInicioInput && dataInicioInput.value) {
         filtros.data_inicio = dataInicioInput.value;
@@ -294,6 +292,16 @@ function getCurrentFiltersMov() {
         filtros.data_fim = dataFimInput.value;
     }
     return filtros;
+}
+
+function mostrarPopupObservacao(texto) {
+    const modalEl = document.getElementById('modalObservacao');
+    const textoEl = document.getElementById('textoObservacao');
+    if (modalEl && textoEl) {
+        textoEl.textContent = texto;
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
 }
 
 // Funções utilitárias globais (showNotification, toggleLoading) são esperadas de app.js ou similar.

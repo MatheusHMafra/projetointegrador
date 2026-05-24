@@ -49,11 +49,6 @@
                             <span>{{ session.nome_usuario if session.nome_usuario else 'Usuário' }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
                                         class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
                         </ul>
@@ -94,7 +89,7 @@
                     <div class="col-md-3">
                         <select class="form-select" id="filtro-incluir-inativos">
                             <option value="false">Apenas Ativos</option>
-                            <option value="true">Mostrar Inativos</option>
+                            <option value="true">Apenas Inativos</option>
                         </select>
                     </div>
                 </div>
@@ -119,7 +114,9 @@
                                         <th>Estoque</th>
                                         <th>Est. Mínimo</th>
                                         <th>Status</th>
+                                        {% if session.user_level in ['admin', 'gerente'] %}
                                         <th>Ações</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody id="produtos-tabela">

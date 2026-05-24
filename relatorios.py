@@ -178,14 +178,10 @@ def get_stock_level_reports():
 
         # Listagem
         order_by_sql = " ORDER BY p.nome ASC"
-        limit_offset_sql = " LIMIT ? OFFSET ?"
 
-        final_query = query_select + where_sql + order_by_sql + limit_offset_sql
+        final_query = query_select + where_sql + order_by_sql
 
-        # Add pagination params to the existing params for WHERE clause
-        params_paginated = params + [per_page, (page - 1) * per_page]
-
-        cursor.execute(final_query, params_paginated)
+        cursor.execute(final_query, params)
         produtos_rows = cursor.fetchall()
 
         return jsonify(
@@ -276,12 +272,10 @@ def get_supplier_summary_report():
         # Groups
         group_by_sql = " GROUP BY f.id, f.nome, f.cnpj, f.telefone, f.email, f.ativo"
         order_by_sql = " ORDER BY fornecedor_nome ASC"
-        limit_offset_sql = " LIMIT ? OFFSET ?"
 
-        final_query = query_select + where_sql + group_by_sql + order_by_sql + limit_offset_sql
-        params_paginated = params + [per_page, (page - 1) * per_page]
+        final_query = query_select + where_sql + group_by_sql + order_by_sql
 
-        cursor.execute(final_query, params_paginated)
+        cursor.execute(final_query, params)
         rows = cursor.fetchall()
 
         return jsonify(
@@ -309,6 +303,132 @@ def get_supplier_summary_report():
             jsonify({"error": "Erro inesperado ao gerar resumo de fornecedores."}),
             500,
         )
+    finally:
+        if conn:
+            conn.close()
+
+
+@relatorios_bp.route("/fornecedores/produtos", methods=["GET"])
+@login_required
+@acesso_requerido(["admin", "gerente"])
+def get_supplier_products_report():
+    """Gera o relatório detalhado de produtos por fornecedor."""
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        status_filter = request.args.get("status")  # 'ativos', 'inativos' or None
+
+        query = """
+            SELECT 
+                f.id as fornecedor_id,
+                f.nome as fornecedor_nome,
+                f.cnpj as fornecedor_cnpj,
+                p.id as produto_id,
+                p.codigo as produto_codigo,
+                p.nome as produto_nome,
+                p.preco as produto_preco,
+                p.preco_compra as produto_preco_compra,
+                p.estoque as produto_estoque,
+                p.ativo as produto_ativo
+            FROM fornecedores f
+            LEFT JOIN produto p ON f.id = p.fornecedor_id
+        """
+
+        where_clauses = []
+        params = []
+
+        if status_filter == "ativos":
+            where_clauses.append("f.ativo = 1")
+        elif status_filter == "inativos":
+            where_clauses.append("f.ativo = 0")
+
+        if where_clauses:
+            query += " WHERE " + " AND ".join(where_clauses)
+
+        query += " ORDER BY f.nome ASC, p.nome ASC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        # Agrupar por fornecedor
+        fornecedores_dict = {}
+        for row in rows:
+            f_id = row["fornecedor_id"]
+            if f_id not in fornecedores_dict:
+                fornecedores_dict[f_id] = {
+                    "id": f_id,
+                    "nome": row["fornecedor_nome"],
+                    "cnpj": row["fornecedor_cnpj"],
+                    "produtos": []
+                }
+            if row["produto_id"] is not None:
+                fornecedores_dict[f_id]["produtos"].append({
+                    "id": row["produto_id"],
+                    "codigo": row["produto_codigo"],
+                    "nome": row["produto_nome"],
+                    "preco": row["produto_preco"],
+                    "preco_compra": row["produto_preco_compra"],
+                    "estoque": row["produto_estoque"],
+                    "ativo": row["produto_ativo"]
+                })
+
+        return jsonify(list(fornecedores_dict.values()))
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Erro de BD ao gerar produtos por fornecedor: {e}", exc_info=True)
+        return jsonify({"error": "Erro no banco de dados."}), 500
+    except Exception as e:
+        current_app.logger.error(f"Erro inesperado: {e}", exc_info=True)
+        return jsonify({"error": "Erro inesperado."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@relatorios_bp.route("/vendas/operadores", methods=["GET"])
+@login_required
+@acesso_requerido(["admin", "gerente"])
+def get_operator_sales_report():
+    """Gera o relatório de vendas por operador."""
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT 
+                u.id as usuario_id,
+                u.nome as usuario_nome,
+                u.email as usuario_email,
+                u.nivel_acesso as usuario_nivel,
+                SUM(CASE WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade) ELSE 0 END) as total_itens_vendidos,
+                SUM(CASE WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN ABS(em.quantidade) ELSE 0 END) as total_itens_devolvidos,
+                SUM(
+                    (CASE WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                          WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                          ELSE 0 END) * COALESCE(p.preco, 0)
+                ) as receita_total
+            FROM usuario u
+            JOIN estoque_movimentacao em ON u.id = em.usuario_id
+            LEFT JOIN produto p ON em.produto_id = p.id
+            WHERE em.tipo = 'venda' 
+               OR (em.tipo = 'saida' AND em.classificacao = 'venda') 
+               OR (em.tipo = 'entrada' AND em.classificacao = 'devolucao')
+            GROUP BY u.id, u.nome, u.email, u.nivel_acesso
+            ORDER BY receita_total DESC
+        """
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        return jsonify([dict(row) for row in rows])
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Erro de BD ao gerar vendas por operador: {e}", exc_info=True)
+        return jsonify({"error": "Erro no banco de dados."}), 500
+    except Exception as e:
+        current_app.logger.error(f"Erro inesperado: {e}", exc_info=True)
+        return jsonify({"error": "Erro inesperado."}), 500
     finally:
         if conn:
             conn.close()

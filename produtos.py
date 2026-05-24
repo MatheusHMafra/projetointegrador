@@ -1001,7 +1001,8 @@ def relatorio_produtos_menos_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        count_query = """
+        # 1. Obter o total de produtos que possuem vendas
+        cursor.execute("""
             SELECT COUNT(*) FROM (
                 SELECT p.id, COALESCE(SUM(
                     CASE
@@ -1015,11 +1016,57 @@ def relatorio_produtos_menos_vendidos():
                 GROUP BY p.id
                 HAVING total_vendido > 0
             )
+        """)
+        total_com_vendas = cursor.fetchone()[0]
+
+        # Se houver mais de 5 produtos com vendas, vamos excluir os top 5 mais vendidos
+        excluir_ids = []
+        if total_com_vendas > 5:
+            cursor.execute("""
+                SELECT p.id, COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
+                FROM produto p
+                LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+                GROUP BY p.id
+                ORDER BY total_vendido DESC, p.nome ASC
+                LIMIT 5
+            """)
+            excluir_ids = [row["id"] for row in cursor.fetchall()]
+
+        # Construir as queries com base na exclusão
+        where_clause = ""
+        query_params = []
+        if excluir_ids:
+            placeholders = ",".join(["?"] * len(excluir_ids))
+            where_clause = f"WHERE p.id NOT IN ({placeholders})"
+            query_params = list(excluir_ids)
+
+        # Contagem final de itens
+        count_query = f"""
+            SELECT COUNT(*) FROM (
+                SELECT p.id, COALESCE(SUM(
+                    CASE
+                        WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
+                        WHEN em.tipo = 'entrada' AND em.classificacao = 'devolucao' THEN -ABS(em.quantidade)
+                        ELSE 0
+                    END
+                ), 0) as total_vendido
+                FROM produto p
+                LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+                {where_clause}
+                GROUP BY p.id
+                HAVING total_vendido > 0
+            )
         """
-        cursor.execute(count_query)
+        cursor.execute(count_query, query_params)
         total_items = cursor.fetchone()[0]
 
-        query = """
+        query = f"""
             SELECT
                 p.id,
                 p.codigo,
@@ -1035,12 +1082,13 @@ def relatorio_produtos_menos_vendidos():
             FROM produto p
             LEFT JOIN categoria c ON p.categoria_id = c.id
             LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
+            {where_clause}
             GROUP BY p.id, p.codigo, p.nome, c.nome
             HAVING total_vendido > 0
             ORDER BY total_vendido ASC, p.nome ASC
             LIMIT ? OFFSET ?
         """
-        params = (per_page, (page - 1) * per_page)
+        params = query_params + [per_page, (page - 1) * per_page]
         cursor.execute(query, params)
         produtos_rows = cursor.fetchall()
 
@@ -1116,7 +1164,7 @@ def produtos_page_html():
 
 @produtos_bp.route("/categorias/page", methods=["GET"])
 @login_required
-@acesso_requerido(["admin", "gerente"])
+@acesso_requerido(["admin", "gerente", "operador"])
 def categorias_page_html():
     """Renderiza a página de gerenciamento de categorias."""
     return render_template("categorias.html")

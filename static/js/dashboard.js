@@ -430,8 +430,10 @@ function configurarFormulariosDashboard() {
 
       toggleLoading(true);
       const dadosProduto = {
-        nome: document.getElementById("nomeProduto")?.value,
-        categoria_id: document.getElementById("categoriaProduto")?.value,
+        codigo: document.getElementById("codigoProduto")?.value?.trim() || null,
+        nome: document.getElementById("nomeProduto")?.value?.trim() || null,
+        categoria_id: document.getElementById("categoriaProduto")?.value || null,
+        fornecedor_id: document.getElementById("fornecedorProduto")?.value ? parseInt(document.getElementById("fornecedorProduto").value, 10) : null,
         preco: parseFloat(document.getElementById("precoProduto")?.value),
         preco_compra: parseFloat(document.getElementById("precoCompraProduto")?.value) || null,
         estoque: parseInt(document.getElementById("estoqueProduto")?.value || "0", 10),
@@ -439,8 +441,29 @@ function configurarFormulariosDashboard() {
         descricao: document.getElementById("descricaoProduto")?.value || "",
       };
 
-      if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco) {
-        showNotification("Nome, Categoria e Preço de Venda são obrigatórios.", "warning");
+      if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco || !dadosProduto.codigo || !dadosProduto.fornecedor_id) {
+        showNotification("Código, Nome, Categoria, Fornecedor e Preço de Venda são obrigatórios.", "warning");
+        toggleLoading(false);
+        return;
+      }
+
+      if (dadosProduto.preco_compra !== null && dadosProduto.preco_compra <= 0) {
+        showNotification("O preço de compra deve ser maior que zero.", "warning");
+        toggleLoading(false);
+        return;
+      }
+      if (dadosProduto.preco <= 0) {
+        showNotification("O preço de venda deve ser maior que zero.", "warning");
+        toggleLoading(false);
+        return;
+      }
+      if (dadosProduto.estoque < 0) {
+        showNotification("O estoque não pode ser negativo.", "warning");
+        toggleLoading(false);
+        return;
+      }
+      if (dadosProduto.estoque_minimo < 0) {
+        showNotification("O estoque mínimo não pode ser negativo.", "warning");
         toggleLoading(false);
         return;
       }
@@ -465,6 +488,7 @@ function configurarFormulariosDashboard() {
 
   modalAdicionarProdutoEl.addEventListener("show.bs.modal", () => {
     carregarOpcoesCategoriasParaModal("categoriaProduto");
+    carregarOpcoesFornecedoresParaModal("fornecedorProduto");
   });
 }
 
@@ -484,6 +508,30 @@ function carregarOpcoesCategoriasParaModal(selectId) {
       selectEl.innerHTML = '<option value="">Selecione uma categoria...</option>';
       (response.data || []).forEach((categoria) => {
         selectEl.innerHTML += `<option value="${categoria.id}">${categoria.nome}</option>`;
+      });
+    })
+    .catch(() => {
+      selectEl.innerHTML = '<option value="">Falha ao carregar</option>';
+    });
+}
+
+function carregarOpcoesFornecedoresParaModal(selectId) {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.FORNECEDORES_LISTAR) {
+    console.error("Erro de Configuração: API_ROUTES.FORNECEDORES_LISTAR não definido.");
+    selectEl.innerHTML = '<option value="">Erro Config API</option>';
+    return;
+  }
+
+  axios
+    .get(API_ROUTES.FORNECEDORES_LISTAR, { params: { ativo: 'true', per_page: 200 } })
+    .then((response) => {
+      selectEl.innerHTML = '<option value="">Selecione um fornecedor...</option>';
+      const fornecedores = response.data.fornecedores || [];
+      fornecedores.forEach((fornecedor) => {
+        selectEl.innerHTML += `<option value="${fornecedor.id}">${fornecedor.nome}</option>`;
       });
     })
     .catch(() => {
