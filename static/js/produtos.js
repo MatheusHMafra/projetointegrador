@@ -28,6 +28,27 @@ function assertProdutoPermission(canProceed, message) {
 document.addEventListener('DOMContentLoaded', () => {
     // As funções showNotification e toggleLoading são esperadas de app.js
 
+    // Parse URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const estoqueBaixoParam = urlParams.get('estoque_baixo');
+    const incluirInativosParam = urlParams.get('incluir_inativos');
+    
+    if (estoqueBaixoParam === 'true') {
+        currentFiltersProdutos.estoque_baixo = true;
+    }
+    if (incluirInativosParam === 'true') {
+        currentFiltersProdutos.incluir_inativos = true;
+    }
+
+    const filtroEstoqueBaixoEl = document.getElementById('filtro-estoque-baixo');
+    if (filtroEstoqueBaixoEl) {
+        filtroEstoqueBaixoEl.value = currentFiltersProdutos.estoque_baixo ? 'true' : '';
+    }
+    const filtroInativosEl = document.getElementById('filtro-incluir-inativos');
+    if (filtroInativosEl) {
+        filtroInativosEl.value = currentFiltersProdutos.incluir_inativos ? 'true' : 'false';
+    }
+
     // Carregar dados iniciais
     carregarOpcoesCategoriasParaFiltro('filtro-categoria'); // Nome da função mais específico
     carregarOpcoesFornecedoresParaFiltro('filtro-fornecedor'); // Nome da função mais específico
@@ -228,7 +249,7 @@ function renderizarTabelaProdutos(produtos) {
                 <td><span class="badge bg-${statusBadgeClass}">${statusBadgeText}</span></td>
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
-                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
@@ -335,7 +356,7 @@ function configurarFiltrosProdutos() {
     }
     if (filtroEstoqueBaixoEl) {
         filtroEstoqueBaixoEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.estoque_baixo = e.target.checked;
+            currentFiltersProdutos.estoque_baixo = e.target.value === 'true';
             currentPageProdutos = 1;
             carregarProdutos();
         });
@@ -343,7 +364,7 @@ function configurarFiltrosProdutos() {
 
     if (filtroInativosEl) {
         filtroInativosEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.incluir_inativos = e.target.checked;
+            currentFiltersProdutos.incluir_inativos = e.target.value === 'true';
             currentPageProdutos = 1;
             carregarProdutos();
         });

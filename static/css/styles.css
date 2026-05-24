@@ -142,7 +142,7 @@ body {
   /* Suporte para mobile moderno */
   background-color: var(--bg-sidebar);
   color: var(--text-light);
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   transition: width var(--transition-speed), background-color var(--transition-speed);
   z-index: 1000;
@@ -271,6 +271,9 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .sidebar-collapsed .main-content {
@@ -1023,6 +1026,7 @@ body {
   color: var(--text-primary);
 }
 
+/*
 .table td .dropdown {
   position: relative;
 }
@@ -1034,6 +1038,7 @@ body {
   left: auto;
   z-index: 1080;
 }
+*/
 
 .table td .dropdown-menu .dropdown-item+.dropdown-item {
   margin-top: 0.1rem;
@@ -1228,4 +1233,64 @@ body {
 
 .card:nth-child(6) {
   animation-delay: 0.3s;
+}
+
+/* ────────────────────────────────────────────
+   26. SUPORTE PARA IMPRESSÃO DE RELATÓRIOS
+   ──────────────────────────────────────────── */
+@media print {
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
+    font-size: 12pt !important;
+  }
+
+  .sidebar,
+  .navbar,
+  .theme-toggle,
+  .btn,
+  .footer,
+  .loading-spinner,
+  .card-header button,
+  nav,
+  button,
+  #notification,
+  .no-print {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    transform: none !important;
+    margin-bottom: 0 !important;
+    background-color: transparent !important;
+  }
+
+  .table {
+    border: 1px solid #000 !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .table th,
+  .table td {
+    border: 1px solid #000 !important;
+    padding: 6px 8px !important;
+    color: #000 !important;
+    background-color: #fff !important;
+  }
+
+  .table th {
+    font-weight: bold !important;
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

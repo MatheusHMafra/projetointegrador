@@ -66,7 +66,7 @@ function renderizarTabelaCategorias(categorias) {
                 <td>${categoria.total_produtos !== undefined ? categoria.total_produtos : 'N/A'}</td>
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
-                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">

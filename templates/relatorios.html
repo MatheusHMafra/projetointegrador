@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark">
+
+<head>
+    {% set page_title = 'Relatórios - GEP' %}
+    {% include '_head.html' %}
+</head>
+
+<body>
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner" style="display: flex;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p>Carregando...</p>
+    </div>
+
+    <div class="d-flex">
+        <!-- Sidebar -->
+        {% include '_sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation -->
+            <nav class="navbar sticky-top d-print-none">
+                <div class="container-fluid">
+                    <button class="btn sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <!-- Theme toggle button -->
+                    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle user-button" type="button" id="userDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session.nome_usuario if session.nome_usuario else 'Usuário' }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Perfil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configurações</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i
+                                        class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page Content -->
+            <div class="container-fluid mt-4">
+                <!-- Page Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+                    <h2 class="page-title"><i class="fas fa-file-alt me-2"></i>Relatórios</h2>
+                </div>
+
+                <!-- Report Options Card -->
+                <div class="card mb-4 d-print-none">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="fas fa-cog me-2 text-primary"></i>Configuração do Relatório</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="relatorio-config-form" class="row g-3">
+                            <div class="col-md-4">
+                                <label for="report-type" class="form-label">Tipo de Relatório</label>
+                                <select id="report-type" class="form-select" required>
+                                    <option value="" disabled selected>Selecione um relatório...</option>
+                                    <option value="vendas">Vendas de Produtos (Mais/Menos Vendidos)</option>
+                                    <option value="estoque">Níveis de Estoque (Status dos Produtos)</option>
+                                </select>
+                            </div>
+
+                            <!-- Options for Sales Report -->
+                            <div class="col-md-4 option-field sales-option" style="display: none;">
+                                <label for="sales-limit" class="form-label">Limite de Linhas</label>
+                                <select id="sales-limit" class="form-select">
+                                    <option value="5">5 produtos</option>
+                                    <option value="10" selected>10 produtos</option>
+                                    <option value="25">25 produtos</option>
+                                    <option value="50">50 produtos</option>
+                                </select>
+                            </div>
+
+                            <!-- Options for Stock Report -->
+                            <div class="col-md-4 option-field stock-option" style="display: none;">
+                                <label for="stock-status" class="form-label">Status do Estoque</label>
+                                <select id="stock-status" class="form-select">
+                                    <option value="">Todos</option>
+                                    <option value="baixo">Estoque Baixo</option>
+                                    <option value="ok">Estoque Adequado</option>
+                                    <option value="excesso">Estoque Excessivo</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-sync-alt me-1"></i>Gerar Relatório
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Printable Report Output -->
+                <div id="report-output-card" class="card shadow-sm" style="display: none;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0" id="report-title-label"><i class="fas fa-file-invoice me-2"></i>Visualização do Relatório</h5>
+                        <button class="btn btn-success btn-sm d-print-none" onclick="imprimirRelatorio()">
+                            <i class="fas fa-print me-1"></i>Imprimir
+                        </button>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Printed Header Metadata -->
+                        <div class="d-none d-print-block mb-4 border-bottom pb-3">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h3 class="mb-0 text-primary">GEP</h3>
+                                    <p class="small text-muted mb-0">Sistema de Gestão de Estoque</p>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <h4 class="mb-0" id="print-report-title">Relatório de Estoque</h4>
+                                    <p class="small text-muted mb-0">Gerado em: <span id="print-report-date">--/--/---- --:--</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Report Dynamic Content Containers -->
+                        <div id="report-content">
+                            <!-- Tables will be loaded here dynamically by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <footer class="footer mt-5 d-print-none">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-0">GEP &copy; 2026</p>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <p class="mb-0">v1.0.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notification" class="notification-popup" style="display:none;"></div>
+
+    <!-- Scripts JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/relatorios.js') }}"></script>
+</body>
+
+</html>

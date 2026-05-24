@@ -175,6 +175,15 @@ def init_db_sqlite():
             )
             cursor.execute("UPDATE produto SET ativo = 1 WHERE ativo IS NULL")
 
+        # Migração leve para bases antigas sem manager_id em usuario.
+        cursor.execute("PRAGMA table_info(usuario)")
+        usuario_cols = [row[1] for row in cursor.fetchall()]
+        if "manager_id" not in usuario_cols:
+            print("Adicionando coluna manager_id em usuario...")
+            cursor.execute(
+                "ALTER TABLE usuario ADD COLUMN manager_id INTEGER"
+            )
+
         print("Criando índice em produto.codigo...")
         cursor.execute(SQL_CREATE_INDEX_PRODUTO_CODIGO)
         print("Criando tabela estoque_movimentacao...")
@@ -189,6 +198,13 @@ def init_db_sqlite():
             print("Adicionando coluna venda_id em estoque_movimentacao...")
             cursor.execute(
                 "ALTER TABLE estoque_movimentacao ADD COLUMN venda_id INTEGER"
+            )
+
+        # Migração leve para bases antigas sem coluna classificacao em estoque_movimentacao.
+        if "classificacao" not in estoque_mov_cols:
+            print("Adicionando coluna classificacao em estoque_movimentacao...")
+            cursor.execute(
+                "ALTER TABLE estoque_movimentacao ADD COLUMN classificacao TEXT"
             )
 
         print("Criando tabela grupo_produto...")

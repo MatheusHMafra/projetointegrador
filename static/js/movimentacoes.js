@@ -73,16 +73,20 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
         .then(response => {
             const data = response.data;
             if (data && data.movimentacoes) {
+                const totalRegistrosEl = document.getElementById('total-registros');
+                if (totalRegistrosEl && data.total !== undefined) {
+                    totalRegistrosEl.textContent = `Total: ${data.total}`;
+                }
                 montarTabelaMovimentacoes(data.movimentacoes);
                 montarPaginacaoMovimentacoes(data.total, data.pages, data.page, data.per_page);
                 if (data.movimentacoes.length === 0 && placeholder) {
                     placeholder.textContent = 'Nenhuma movimentação encontrada para os filtros aplicados.';
-                    tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center">${placeholder.textContent}</td></tr>`;
+                    tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center">${placeholder.textContent}</td></tr>`;
                 }
                  if (paginacaoNav) paginacaoNav.style.display = data.movimentacoes.length > 0 ? 'block' : 'none';
             } else {
                  if (placeholder) placeholder.textContent = 'Não foi possível carregar as movimentações.';
-                 if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center">${placeholder.textContent}</td></tr>`;
+                 if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center">${placeholder.textContent}</td></tr>`;
             }
         })
         .catch(error => {
@@ -90,7 +94,7 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
             const errorMsg = error.response?.data?.error || 'Falha ao carregar movimentações.';
             showNotification(errorMsg, 'danger');
             if (placeholder) placeholder.textContent = errorMsg;
-            if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center text-danger">${errorMsg}</td></tr>`;
+            if (tabelaCorpo) tabelaCorpo.innerHTML = `<tr><td colspan="11" class="text-center text-danger">${errorMsg}</td></tr>`;
         })
         .finally(() => {
             if (spinner) spinner.style.display = 'none';
@@ -101,24 +105,37 @@ function carregarMovimentacoes(page = 1, filtros = {}) {
  * Popula a tabela de movimentações com os dados recebidos.
  * @param {Array} movimentacoes - Array de objetos de movimentação.
  */
+const MAP_CLASSIFICACAO = {
+    'reposicao': 'Reposição',
+    'devolucao': 'Devolução Cliente',
+    'venda': 'Venda',
+    'roubo': 'Roubo',
+    'dano': 'Dano / Avaria',
+    'devolucao_fornecedor': 'Devol. Fornecedor',
+    'descarte': 'Descarte',
+    'outro': 'Outro Motivo'
+};
+
 function montarTabelaMovimentacoes(movimentacoes) {
     const tabelaCorpo = document.getElementById('movimentacoes-tabela-corpo');
     if (!tabelaCorpo) return;
     tabelaCorpo.innerHTML = ''; // Limpar antes de adicionar
 
     if (movimentacoes.length === 0) {
-        tabelaCorpo.innerHTML = '<tr><td colspan="10" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
+        tabelaCorpo.innerHTML = '<tr><td colspan="11" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
         return;
     }
 
     movimentacoes.forEach(mov => {
         const tr = document.createElement('tr');
+        const classificacaoFmt = MAP_CLASSIFICACAO[mov.classificacao] || mov.classificacao || '-';
         tr.innerHTML = `
             <td>${mov.id}</td>
             <td>
                 ${mov.produto ? `${mov.produto.nome || 'N/A'} <small class="text-muted d-block">(${mov.produto.codigo || 'S/Cód.'})</small>` : 'Produto não encontrado'}
             </td>
             <td><span class="badge bg-${getBadgeClassForTipo(mov.tipo)}">${mov.tipo.charAt(0).toUpperCase() + mov.tipo.slice(1)}</span></td>
+            <td><span class="badge bg-secondary">${classificacaoFmt}</span></td>
             <td>${mov.quantidade}</td>
             <td>${mov.estoque_anterior !== null ? mov.estoque_anterior : 'N/A'}</td>
             <td>${mov.estoque_atual !== null ? mov.estoque_atual : 'N/A'}</td>
@@ -223,6 +240,17 @@ function montarPaginacaoMovimentacoes(totalItems, totalPages, currentPage, items
 function configurarFiltrosMovimentacoes() {
     const formFiltros = document.getElementById('filtros-movimentacoes-form');
     const btnLimparFiltros = document.getElementById('limpar-filtros');
+    const produtoInput = document.getElementById('filtro-produto');
+    let debounceTimeout;
+
+    if (produtoInput) {
+        produtoInput.addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                carregarMovimentacoes(1, getCurrentFiltersMov());
+            }, 500);
+        });
+    }
 
     if (formFiltros) {
         formFiltros.addEventListener('submit', (event) => {
@@ -234,6 +262,7 @@ function configurarFiltrosMovimentacoes() {
     if (btnLimparFiltros) {
         btnLimparFiltros.addEventListener('click', () => {
             if (formFiltros) formFiltros.reset();
+            if (produtoInput) produtoInput.value = '';
             carregarMovimentacoes(1, {}); // Carrega sem filtros
         });
     }

@@ -29,6 +29,7 @@ def entrada_produto():
     observacao = data.get(
         "observacao", "Entrada manual de estoque"
     )  # Observação padrão
+    classificacao = data.get("classificacao")
 
     # Validação dos dados de entrada
     if not produto_id:
@@ -55,6 +56,7 @@ def entrada_produto():
             quantidade=quantidade,
             usuario_id=session.get("user_id"),  # ID do usuário logado
             observacao=observacao,
+            classificacao=classificacao,
         )
 
         # Retornar sucesso com informações do produto atualizado
@@ -95,6 +97,7 @@ def saida_produto():
     produto_id = data.get("produto_id")
     quantidade_str = data.get("quantidade")
     observacao = data.get("observacao", "Saída manual de estoque")
+    classificacao = data.get("classificacao")
 
     if not produto_id:
         return jsonify({"error": "ID do produto é obrigatório."}), 400
@@ -118,6 +121,7 @@ def saida_produto():
             quantidade=quantidade,
             usuario_id=session.get("user_id"),
             observacao=observacao,
+            classificacao=classificacao,
         )
         return (
             jsonify(
@@ -234,14 +238,15 @@ def listar_movimentacoes():
         query_base = """
             SELECT m.id, m.produto_id, m.tipo, m.quantidade, m.estoque_anterior,
                    m.estoque_atual, m.observacao, m.data_movimento, m.usuario_id,
+                   m.classificacao,
                    p.nome as produto_nome, p.codigo as produto_codigo,
                    u.nome as usuario_nome, v.codigo as venda_codigo
-            FROM movimento_estoque m
+            FROM estoque_movimentacao m
             LEFT JOIN produto p ON m.produto_id = p.id
             LEFT JOIN usuario u ON m.usuario_id = u.id
             LEFT JOIN venda v ON m.venda_id = v.id
         """
-        count_query_base = "SELECT COUNT(m.id) FROM movimento_estoque m"
+        count_query_base = "SELECT COUNT(m.id) FROM estoque_movimentacao m"
 
         conditions = []
         params = []
@@ -330,6 +335,7 @@ def listar_movimentacoes():
                     "estoque_anterior": m["estoque_anterior"],
                     "estoque_atual": m["estoque_atual"],
                     "observacao": m["observacao"],
+                    "classificacao": m["classificacao"],
                     "data": data_formatada,
                     "venda_codigo": m.get(
                         "venda_codigo"

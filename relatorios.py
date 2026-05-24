@@ -4,6 +4,7 @@ from flask import (
     jsonify,
     request,
     current_app,
+    render_template,
 )  # Added session and current_app
 from database_utils import get_db  # Utility to get DB connection
 from auth import login_required, acesso_requerido  # Auth decorators
@@ -235,3 +236,11 @@ def get_stock_level_reports():
     finally:
         if conn:
             conn.close()
+
+
+@relatorios_bp.route("/page", methods=["GET"])
+@login_required
+@acesso_requerido(["admin", "gerente"])
+def relatorios_page():
+    """Renderiza a página de geração de relatórios."""
+    return render_template("relatorios.html")

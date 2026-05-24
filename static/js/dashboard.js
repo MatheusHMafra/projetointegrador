@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   Promise.all([
     carregarEstatisticas(),
-    carregarProdutosEstoqueBaixoCard(),
     carregarProdutosMaisVendidos(),
     carregarProdutosMenosVendidos(),
     criarGraficoMovimentacao(),
@@ -81,49 +80,7 @@ function carregarEstatisticas() {
     });
 }
 
-function carregarProdutosEstoqueBaixoCard() {
-  if (typeof API_ROUTES === "undefined" || !API_ROUTES.DASHBOARD_STATS) {
-    console.error("Erro de Configuração: API_ROUTES.DASHBOARD_STATS não definido.");
-    return Promise.reject("API_ROUTES.DASHBOARD_STATS não definido.");
-  }
 
-  return axios
-    .get(API_ROUTES.DASHBOARD_STATS)
-    .then((response) => {
-      const data = response.data || {};
-      const listaEstoqueBaixoEl = document.getElementById("estoque-baixo-lista");
-      if (!listaEstoqueBaixoEl) return;
-
-      listaEstoqueBaixoEl.innerHTML = "";
-      const produtosBaixo = data.produtos_estoque_baixo_lista_dashboard || [];
-
-      if (produtosBaixo.length > 0) {
-        produtosBaixo.slice(0, 5).forEach((produto) => {
-          const li = document.createElement("li");
-          li.className = "list-group-item d-flex justify-content-between align-items-center";
-          li.innerHTML = `
-            <small>${produto.nome}</small>
-            <span class="badge bg-warning rounded-pill">${produto.estoque}</span>
-          `;
-          listaEstoqueBaixoEl.appendChild(li);
-        });
-      } else if (parseInt(data.produtos_estoque_baixo || 0, 10) > 0) {
-        listaEstoqueBaixoEl.innerHTML =
-          '<li class="list-group-item text-center text-muted small">Ver detalhes na página de produtos.</li>';
-      } else {
-        listaEstoqueBaixoEl.innerHTML =
-          '<li class="list-group-item text-center text-muted small">Nenhum produto com estoque baixo.</li>';
-      }
-    })
-    .catch((error) => {
-      console.error("Erro ao carregar dados de estoque baixo:", error.response ? error.response.data : error.message);
-      const listaEstoqueBaixoEl = document.getElementById("estoque-baixo-lista");
-      if (listaEstoqueBaixoEl) {
-        listaEstoqueBaixoEl.innerHTML =
-          '<li class="list-group-item text-center text-danger small">Erro ao carregar.</li>';
-      }
-    });
-}
 
 function carregarProdutosMaisVendidos() {
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_MAIS_VENDIDOS) {
@@ -451,6 +408,7 @@ function submeterEntradaProduto() {
   const produtoId = document.getElementById("produtoEntrada")?.value;
   const quantidade = document.getElementById("qtdEntrada")?.value;
   const motivo = document.getElementById("motivoEntrada")?.value?.trim() || "Entrada manual";
+  const classificacao = document.getElementById("classificacaoEntrada")?.value;
 
   if (!produtoId || !quantidade || parseInt(quantidade, 10) <= 0) {
     showNotification("Dados inválidos para entrada.", "warning");
@@ -468,6 +426,7 @@ function submeterEntradaProduto() {
       produto_id: parseInt(produtoId, 10),
       quantidade: parseInt(quantidade, 10),
       observacao: motivo,
+      classificacao: classificacao,
     })
     .then((response) => {
       showNotification(response.data.message || "Entrada registrada com sucesso!", "success");
@@ -488,6 +447,7 @@ function submeterSaidaProduto() {
   const produtoId = document.getElementById("produtoSaida")?.value;
   const quantidade = document.getElementById("qtdSaida")?.value;
   const motivo = document.getElementById("motivoSaida")?.value?.trim() || "Saída manual";
+  const classificacao = document.getElementById("classificacaoSaida")?.value;
 
   if (!produtoId || !quantidade || parseInt(quantidade, 10) <= 0) {
     showNotification("Dados inválidos para saída.", "warning");
@@ -505,6 +465,7 @@ function submeterSaidaProduto() {
       produto_id: parseInt(produtoId, 10),
       quantidade: parseInt(quantidade, 10),
       observacao: motivo,
+      classificacao: classificacao,
     })
     .then((response) => {
       showNotification(response.data.message || "Saída registrada com sucesso!", "success");

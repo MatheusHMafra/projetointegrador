@@ -86,18 +86,16 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="filtro-estoque-baixo">
-                            <label class="form-check-label" for="filtro-estoque-baixo">
-                                Apenas estoque baixo
-                            </label>
-                        </div>
+                        <select class="form-select" id="filtro-estoque-baixo">
+                            <option value="">Todos os Estoques</option>
+                            <option value="true">Estoque Baixo</option>
+                        </select>
                     </div>
                     <div class="col-md-3">
-                        <div class="form-check form-switch mt-2">
-                            <input class="form-check-input" type="checkbox" id="filtro-incluir-inativos">
-                            <label class="form-check-label" for="filtro-incluir-inativos">Mostrar inativos</label>
-                        </div>
+                        <select class="form-select" id="filtro-incluir-inativos">
+                            <option value="false">Apenas Ativos</option>
+                            <option value="true">Mostrar Inativos</option>
+                        </select>
                     </div>
                 </div>
 

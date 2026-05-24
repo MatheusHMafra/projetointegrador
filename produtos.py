@@ -1052,9 +1052,26 @@ def relatorio_produtos_menos_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        count_query = "SELECT COUNT(id) FROM produto"
-        cursor.execute(count_query)
-        total_items = cursor.fetchone()[0]
+        try:
+            count_query = """
+                SELECT COUNT(DISTINCT p.id)
+                FROM produto p
+                INNER JOIN item_venda iv ON p.id = iv.produto_id
+            """
+            cursor.execute(count_query)
+            total_items = cursor.fetchone()[0]
+        except sqlite3.OperationalError as e:
+            if "no such table: item_venda" not in str(e).lower():
+                raise
+            count_query = """
+                SELECT COUNT(DISTINCT p.id)
+                FROM produto p
+                INNER JOIN estoque_movimentacao em ON p.id = em.produto_id
+                WHERE em.tipo = 'venda'
+            """
+            cursor.execute(count_query)
+            total_items = cursor.fetchone()[0]
+
         total_pages = (total_items + per_page -
                        1) // per_page if per_page > 0 else 1
 
@@ -1065,6 +1082,7 @@ def relatorio_produtos_menos_vendidos():
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 LEFT JOIN item_venda iv ON p.id = iv.produto_id
                 GROUP BY p.id, p.codigo, p.nome, c.nome
+                HAVING total_vendido > 0
                 ORDER BY total_vendido ASC, p.nome ASC
                 LIMIT ? OFFSET ?
             """
@@ -1086,6 +1104,7 @@ def relatorio_produtos_menos_vendidos():
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 LEFT JOIN estoque_movimentacao em ON p.id = em.produto_id
                 GROUP BY p.id, p.codigo, p.nome, c.nome
+                HAVING total_vendido > 0
                 ORDER BY total_vendido ASC, p.nome ASC
                 LIMIT ? OFFSET ?
             """

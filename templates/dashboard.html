@@ -124,7 +124,7 @@
                                 </div>
                             </div>
                             <div class="stats-footer">
-                                <a href="{{ url_for('produtos.produtos_page_html') }}">Ver detalhes <i
+                                <a href="{{ url_for('produtos.produtos_page_html') }}?estoque_baixo=true">Ver detalhes <i
                                         class="fas fa-arrow-right"></i></a>
                             </div>
                         </div>
@@ -137,11 +137,12 @@
                                 </div>
                                 <div class="stats-data">
                                     <h3 id="valor-estoque">--</h3>
-                                    <p>Valor em Estoque</p>
+                                    <p>Valor em Estoque <i class="fas fa-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Calculado como a soma de (Estoque * Preço de Compra) dos produtos ativos com preço e estoque maiores que zero."></i></p>
                                 </div>
                             </div>
                             <div class="stats-footer">
-                                <a href="#relatorios">Ver detalhes <i class="fas fa-arrow-right"></i></a>
+                                <a href="{{ url_for('relatorios.relatorios_page') }}">Ver detalhes <i
+                                        class="fas fa-arrow-right"></i></a>
                             </div>
                         </div>
                     </div>
@@ -150,33 +151,13 @@
                 <!-- Produtos recentes e Gráfico -->
                 <div class="row">
                     <!-- Gráfico de movimentação -->
-                    <div class="col-md-8 mb-4">
+                    <div class="col-12 mb-4">
                         <div class="card shadow-sm">
                             <div class="card-header bg-white">
                                 <h5><i class="fas fa-chart-line me-2"></i>Movimentação de Estoque</h5>
                             </div>
                             <div class="card-body">
                                 <canvas id="graficoMovimentacao" height="300"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Produtos com estoque baixo -->
-                    <div class="col-md-4 mb-4">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                <h5><i class="fas fa-exclamation-circle me-2 text-warning"></i>Estoque Baixo</h5>
-                                <!-- Corrigido link para página de produtos -->
-                                <a href="{{ url_for('produtos.produtos_page_html') }}"
-                                    class="btn btn-sm btn-outline-warning">Ver Todos</a>
-                            </div>
-                            <div class="card-body p-0">
-                                <ul class="list-group list-group-flush" id="estoque-baixo-lista">
-                                    <li
-                                        class="list-group-item d-flex justify-content-between align-items-center text-center p-3">
-                                        <span class="text-muted">Carregando...</span>
-                                    </li>
-                                </ul>
                             </div>
                         </div>
                     </div>
@@ -407,13 +388,22 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="classificacaoEntrada" class="form-label">Classificação <span class="text-danger">*</span></label>
+                            <select id="classificacaoEntrada" class="form-select" required>
+                                <option value="reposicao" selected>Reposição (Compra/Estoque)</option>
+                                <option value="devolucao">Devolução de Cliente</option>
+                                <option value="outro">Outro Motivo</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="qtdEntrada" class="form-label">Quantidade <span class="text-danger">*</span></label>
                             <input type="number" id="qtdEntrada" class="form-control" min="1" placeholder="Ex: 10" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="motivoEntrada" class="form-label">Motivo (opcional)</label>
-                            <input type="text" id="motivoEntrada" class="form-control" placeholder="Ex: Reposição, Devolução de cliente...">
+                            <label for="motivoEntrada" class="form-label">Motivo / Detalhes (opcional)</label>
+                            <input type="text" id="motivoEntrada" class="form-control" placeholder="Ex: Devolução de cliente...">
                         </div>
                     </form>
                 </div>
@@ -443,13 +433,25 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="classificacaoSaida" class="form-label">Classificação <span class="text-danger">*</span></label>
+                            <select id="classificacaoSaida" class="form-select" required>
+                                <option value="venda" selected>Venda</option>
+                                <option value="roubo">Roubo</option>
+                                <option value="dano">Dano / Avaria</option>
+                                <option value="devolucao_fornecedor">Devolução para Fornecedor</option>
+                                <option value="descarte">Descarte</option>
+                                <option value="outro">Outro Motivo</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="qtdSaida" class="form-label">Quantidade <span class="text-danger">*</span></label>
                             <input type="number" id="qtdSaida" class="form-control" min="1" placeholder="Ex: 5" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="motivoSaida" class="form-label">Motivo (opcional)</label>
-                            <input type="text" id="motivoSaida" class="form-control" placeholder="Ex: Venda, Dano, Roubo...">
+                            <label for="motivoSaida" class="form-label">Motivo / Detalhes (opcional)</label>
+                            <input type="text" id="motivoSaida" class="form-control" placeholder="Ex: Dano, Roubo...">
                         </div>
                     </form>
                 </div>

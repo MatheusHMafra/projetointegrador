@@ -29,9 +29,6 @@ def get_db():
     return conn
 
 
-# Removed init_db() and criar_tabelas() as schema initialization should be handled by models.py's init_db_sqlite
-
-
 def inicializar_dados_exemplo():
     """Insere dados de exemplo no banco de dados, se não existirem."""
     conn = None
@@ -348,7 +345,7 @@ def obter_estatisticas():
 
 
 def registrar_movimento(
-    produto_id, tipo, quantidade, usuario_id=None, observacao=None, venda_id=None
+    produto_id, tipo, quantidade, usuario_id=None, observacao=None, venda_id=None, classificacao=None
 ):
     """
     Registra um movimento de estoque e atualiza o estoque do produto.
@@ -455,8 +452,8 @@ def registrar_movimento(
         cursor.execute(
             """
             INSERT INTO estoque_movimentacao
-            (produto_id, usuario_id, tipo, quantidade, estoque_anterior, estoque_atual, observacao, venda_id, data_movimento)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            (produto_id, usuario_id, tipo, quantidade, estoque_anterior, estoque_atual, observacao, venda_id, data_movimento, classificacao)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
             """,
             (
                 produto_id,
@@ -467,6 +464,7 @@ def registrar_movimento(
                 estoque_novo,
                 observacao,
                 venda_id,
+                classificacao,
             ),
         )
         movimento_id = cursor.lastrowid

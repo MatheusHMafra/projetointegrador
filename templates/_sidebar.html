@@ -28,14 +28,21 @@
             </a>
         </li>
 
-        <!--
-            <li class="{{ 'active' if request.endpoint == 'estoque.movimentacoes_page' else '' }}">
-                <a href="{{ url_for('estoque.movimentacoes_page') }}">
-                    <i class="fas fa-exchange-alt sidebar-icon"></i>
-                    <span>Movimentações</span>
-                </a>
-            </li>
-        -->
+        <li class="{{ 'active' if request.endpoint == 'estoque.movimentacoes_page' else '' }}">
+            <a href="{{ url_for('estoque.movimentacoes_page') }}">
+                <i class="fas fa-history"></i>
+                <span>Registros Gerais</span>
+            </a>
+        </li>
+
+        {% if session.user_level in ['admin', 'gerente'] %}
+        <li class="{{ 'active' if request.endpoint == 'relatorios.relatorios_page' else '' }}">
+            <a href="{{ url_for('relatorios.relatorios_page') }}">
+                <i class="fas fa-file-alt"></i>
+                <span>Relatórios</span>
+            </a>
+        </li>
+        {% endif %}
 
         <li class="{{ 'active' if request.endpoint == 'fornecedores.fornecedores_page_html' else '' }}">
             <a href="{{ url_for('fornecedores.fornecedores_page_html') }}">
