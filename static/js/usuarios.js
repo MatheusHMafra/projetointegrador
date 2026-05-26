@@ -1,42 +1,26 @@
-/**
- * GEP - Gerenciamento de Usuários
- * Script para a página de gerenciamento de usuários.
- */
-
-// Variáveis globais para este script
 let currentSearchTermUsuarios = "";
-let allUsersData = []; // Para armazenar a lista completa de usuários para filtragem no cliente
+let allUsersData = [];
 
 document.addEventListener("DOMContentLoaded", () => {
-  // window.initialUsersData e window.currentUserInfo são injetados pelo template HTML
-  // e devem estar disponíveis aqui.
-  carregarUsuarios(); // Carrega os dados (injetados ou via API)
+  carregarUsuarios();
   configurarBuscaUsuarios();
   configurarModaisUsuarios();
 });
 
-/**
- * Carrega os usuários.
- * Primeiro tenta usar os dados injetados (window.initialUsersData).
- * Se não disponíveis ou se forceApiCall for true, busca via API.
- * @param {boolean} forceApiCall - Força a busca via API mesmo que dados injetados existam.
- */
 function carregarUsuarios(forceApiCall = false) {
-  toggleLoading(true); // Mostra o spinner
+  toggleLoading(true);
 
   const processAndRenderData = (data) => {
-    allUsersData = data; // Armazena a lista completa para filtragem
-    renderizarTabelaUsuarios(allUsersData); // renderizarTabelaUsuarios aplicará o filtro de busca atual
+    allUsersData = data;
+    renderizarTabelaUsuarios(allUsersData);
 
-    // Atualiza a contagem total de usuários (independente do filtro)
     const totalUsuariosElement = document.getElementById("total-usuarios");
     if (totalUsuariosElement) {
       totalUsuariosElement.textContent = `Total: ${allUsersData.length} usuários`;
     }
-    toggleLoading(false); // Esconde o spinner
+    toggleLoading(false);
   };
 
-  // Verifica se os dados injetados existem e se não é para forçar a chamada da API
   if (
     !forceApiCall &&
     typeof window.initialUsersData !== "undefined" &&
@@ -44,14 +28,10 @@ function carregarUsuarios(forceApiCall = false) {
   ) {
     console.log("Carregando usuários a partir de dados injetados globalmente.");
     processAndRenderData(window.initialUsersData);
-    // Opcional: Limpar os dados injetados após o primeiro uso para garantir que
-    // recarregamentos subsequentes (se houver) usem a API para dados frescos.
-    // Contudo, para a busca no cliente, é melhor manter allUsersData.
-    // window.initialUsersData = null;
   } else {
     console.log("Carregando usuários via API.");
     axios
-      .get(API_ROUTES.USUARIOS_LISTAR) // GET /auth/usuarios (deve retornar JSON)
+      .get(API_ROUTES.USUARIOS_LISTAR)
       .then((response) => {
         const usuarios = response.data.usuarios || [];
         processAndRenderData(usuarios);
@@ -59,36 +39,31 @@ function carregarUsuarios(forceApiCall = false) {
       .catch((error) => {
         console.error(
           "Erro ao carregar usuários via API:",
-          error.response ? error.response.data : error.message
+          error.response ? error.response.data : error.message,
         );
         showNotification("Falha ao carregar lista de usuários.", "danger");
         const tabelaBody = document.getElementById("usuarios-tabela");
         if (tabelaBody) {
           tabelaBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Erro ao carregar usuários. Tente novamente.</td></tr>`;
         }
-        allUsersData = []; // Limpa dados em caso de erro
+        allUsersData = [];
         const totalUsuariosElement = document.getElementById("total-usuarios");
         if (totalUsuariosElement) {
           totalUsuariosElement.textContent = `Total: 0 usuários`;
         }
-        toggleLoading(false); // Esconde o spinner
+        toggleLoading(false);
       });
   }
 }
 
-/**
- * Renderiza a tabela de usuários com base nos dados fornecidos e no termo de busca atual.
- * @param {Array} usuariosParaRenderizar - A lista completa de usuários (geralmente allUsersData).
- */
 function renderizarTabelaUsuarios(usuariosParaRenderizar) {
   const tabelaBody = document.getElementById("usuarios-tabela");
   if (!tabelaBody) {
     console.error("Elemento #usuarios-tabela não encontrado no DOM.");
     return;
   }
-  tabelaBody.innerHTML = ""; // Limpa a tabela antes de renderizar
+  tabelaBody.innerHTML = "";
 
-  // Aplica o filtro de busca atual aos dados fornecidos
   const termoBuscaNormalizado = currentSearchTermUsuarios.toLowerCase();
   const usuariosFiltrados = termoBuscaNormalizado
     ? usuariosParaRenderizar.filter(
@@ -96,7 +71,7 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
           (user.nome &&
             user.nome.toLowerCase().includes(termoBuscaNormalizado)) ||
           (user.email &&
-            user.email.toLowerCase().includes(termoBuscaNormalizado))
+            user.email.toLowerCase().includes(termoBuscaNormalizado)),
       )
     : usuariosParaRenderizar;
 
@@ -110,12 +85,9 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
       const statusClass = usuario.ativo ? "success" : "secondary";
       const statusText = usuario.ativo ? "Ativo" : "Inativo";
 
-      // Função auxiliar para formatar datas
       const formatarData = (dataISO) => {
         if (!dataISO) return "N/A";
         try {
-          // As datas do SQLite (CURRENT_TIMESTAMP) são strings 'YYYY-MM-DD HH:MM:SS'
-          // O construtor Date() do JS geralmente lida bem com isso.
           return new Date(dataISO).toLocaleString("pt-BR", {
             day: "2-digit",
             month: "2-digit",
@@ -125,15 +97,13 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
           });
         } catch (e) {
           console.warn("Erro ao formatar data:", dataISO, e);
-          return dataISO; // Fallback para a string original se a formatação falhar
+          return dataISO;
         }
       };
 
       const ultimoAcesso = formatarData(usuario.ultimo_acesso);
       const dataCriacao = formatarData(usuario.data_criacao);
 
-      // Desabilitar botão de exclusão para o próprio usuário logado
-      // Acessa window.currentUserInfo que foi injetado no HTML
       const disableDelete =
         window.currentUserInfo &&
         Number(usuario.id) === Number(window.currentUserInfo.id);
@@ -178,10 +148,10 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
       tabelaBody.innerHTML += row;
     });
   }
-  // Atualiza a contagem de usuários exibidos após o filtro
+
   const totalUsuariosElement = document.getElementById("total-usuarios");
   if (totalUsuariosElement) {
-    const totalGeral = usuariosParaRenderizar.length; // Total antes do filtro
+    const totalGeral = usuariosParaRenderizar.length;
     const totalAtivos = usuariosParaRenderizar.filter((u) => u.ativo).length;
     const totalInativos = totalGeral - totalAtivos;
     totalUsuariosElement.textContent = `Total: ${totalGeral} usuários | Ativos: ${totalAtivos} | Inativos: ${totalInativos} (mostrando ${usuariosFiltrados.length})`;
@@ -189,10 +159,6 @@ function renderizarTabelaUsuarios(usuariosParaRenderizar) {
   inicializarDropdownsTabela();
 }
 
-/**
- * Configura a funcionalidade de busca de usuários com debounce.
- * A busca agora filtra os dados já carregados em `allUsersData`.
- */
 function configurarBuscaUsuarios() {
   const buscaInputEl = document.getElementById("busca-usuario");
   let debounceTimeout;
@@ -202,18 +168,14 @@ function configurarBuscaUsuarios() {
       clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(() => {
         currentSearchTermUsuarios = e.target.value.trim().toLowerCase();
-        // Re-renderiza a tabela com os dados já armazenados em allUsersData, aplicando o filtro
+
         renderizarTabelaUsuarios(allUsersData);
-      }, 300); // Atraso para não filtrar a cada tecla digitada
+      }, 300);
     });
   }
 }
 
-/**
- * Configura os eventos e a lógica dos modais de usuários (Editar, Excluir).
- */
 function configurarModaisUsuarios() {
-  // Modal Editar Usuário
   const modalEditarEl = document.getElementById("modalEditarUsuario");
   const formEditarEl = document.getElementById("formEditarUsuario");
   const btnAtualizarUsuarioEl = document.getElementById("btnAtualizarUsuario");
@@ -221,17 +183,15 @@ function configurarModaisUsuarios() {
   if (modalEditarEl && formEditarEl && btnAtualizarUsuarioEl) {
     btnAtualizarUsuarioEl.addEventListener("click", () => {
       if (formEditarEl.checkValidity()) {
-        // Validação básica do HTML5
         submeterFormularioEditarUsuario();
       } else {
-        formEditarEl.reportValidity(); // Mostra erros de validação do HTML5
+        formEditarEl.reportValidity();
       }
     });
   }
 
-  // Modal Confirmar Exclusão Usuário
   const btnConfirmarExclusaoEl = document.getElementById(
-    "btnConfirmarExclusaoUsuario"
+    "btnConfirmarExclusaoUsuario",
   );
   if (btnConfirmarExclusaoEl) {
     btnConfirmarExclusaoEl.addEventListener("click", () => {
@@ -243,17 +203,13 @@ function configurarModaisUsuarios() {
   }
 }
 
-/**
- * Abre o modal de edição preenchido com os dados do usuário.
- * @param {number} usuarioId - ID do usuário a ser editado.
- */
 function abrirModalEditarUsuario(usuarioId) {
   toggleLoading(true);
-  // A API /auth/usuarios/{id} já retorna JSON e é usada para obter os dados mais recentes.
+
   axios
     .get(API_ROUTES.USUARIO_DETALHES(usuarioId))
     .then((response) => {
-      const usuario = response.data.usuario; // A API /auth/usuarios/{id} retorna { usuario: {...} }
+      const usuario = response.data.usuario;
       if (!usuario) {
         showNotification("Usuário não encontrado para edição.", "warning");
         toggleLoading(false);
@@ -265,7 +221,7 @@ function abrirModalEditarUsuario(usuarioId) {
       document.getElementById("editNivelAcessoUsuario").value =
         usuario.nivel_acesso || "operador";
       document.getElementById("editAtivoUsuario").checked = usuario.ativo;
-      document.getElementById("editSenhaUsuario").value = ""; // Limpar campo de senha sempre
+      document.getElementById("editSenhaUsuario").value = "";
       document.getElementById("editSenhaUsuario").placeholder =
         "Deixe em branco para não alterar";
 
@@ -275,11 +231,11 @@ function abrirModalEditarUsuario(usuarioId) {
     .catch((error) => {
       console.error(
         "Erro ao carregar dados do usuário para edição:",
-        error.response ? error.response.data : error.message
+        error.response ? error.response.data : error.message,
       );
       showNotification(
         "Falha ao carregar dados do usuário para edição.",
-        "danger"
+        "danger",
       );
     })
     .finally(() => {
@@ -287,9 +243,6 @@ function abrirModalEditarUsuario(usuarioId) {
     });
 }
 
-/**
- * Submete o formulário de edição do usuário.
- */
 function submeterFormularioEditarUsuario() {
   const usuarioId = document.getElementById("editUsuarioId").value;
   if (!usuarioId) {
@@ -307,7 +260,6 @@ function submeterFormularioEditarUsuario() {
 
   const novaSenha = document.getElementById("editSenhaUsuario").value;
   if (novaSenha && novaSenha.trim() !== "") {
-    // Só envia senha se não estiver vazia
     dadosUsuarioAtualizado.senha = novaSenha;
   }
 
@@ -318,11 +270,11 @@ function submeterFormularioEditarUsuario() {
   }
 
   axios
-    .put(API_ROUTES.USUARIO_DETALHES(usuarioId), dadosUsuarioAtualizado) // PUT /auth/usuarios/{id}
+    .put(API_ROUTES.USUARIO_DETALHES(usuarioId), dadosUsuarioAtualizado)
     .then((response) => {
       showNotification(
         response.data.message || "Usuário atualizado com sucesso!",
-        "success"
+        "success",
       );
       const modalEl = document.getElementById("modalEditarUsuario");
       if (modalEl) {
@@ -330,12 +282,12 @@ function submeterFormularioEditarUsuario() {
           bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.hide();
       }
-      carregarUsuarios(true); // Força recarregar da API para ter os dados mais recentes
+      carregarUsuarios(true);
     })
     .catch((error) => {
       console.error(
         "Erro ao atualizar usuário:",
-        error.response ? error.response.data : error.message
+        error.response ? error.response.data : error.message,
       );
       const msg =
         error.response?.data?.error ||
@@ -347,14 +299,7 @@ function submeterFormularioEditarUsuario() {
     });
 }
 
-/**
- * Prepara e abre o modal de confirmação de exclusão para usuários.
- * @param {number} usuarioId - ID do usuário a ser excluído.
- * @param {string} nomeUsuario - Nome do usuário.
- */
 function confirmarExclusaoUsuarioModal(usuarioId, nomeUsuario) {
-  // Verificar se é o usuário logado antes de abrir o modal
-  // Acessa window.currentUserInfo que foi injetado no HTML
   if (window.currentUserInfo && usuarioId === window.currentUserInfo.id) {
     showNotification("Você não pode excluir seu próprio usuário.", "warning");
     return;
@@ -367,22 +312,16 @@ function confirmarExclusaoUsuarioModal(usuarioId, nomeUsuario) {
   if (modalEl) new bootstrap.Modal(modalEl).show();
 }
 
-/**
- * Confirma e executa a exclusão do usuário.
- * @param {number} usuarioId - ID do usuário a ser excluído.
- */
 function executarExclusaoUsuario(usuarioId) {
   if (!usuarioId) return;
 
-  // Segurança adicional: não permitir exclusão do próprio usuário (já verificado no botão e ao abrir modal)
-  // Acessa window.currentUserInfo que foi injetado no HTML
   if (
     window.currentUserInfo &&
     parseInt(usuarioId) === window.currentUserInfo.id
   ) {
     showNotification("Não é permitido excluir o próprio usuário.", "danger");
     const modalConfirmacao = document.getElementById(
-      "modalConfirmarExclusaoUsuario"
+      "modalConfirmarExclusaoUsuario",
     );
     if (modalConfirmacao && bootstrap.Modal.getInstance(modalConfirmacao)) {
       bootstrap.Modal.getInstance(modalConfirmacao).hide();
@@ -392,11 +331,11 @@ function executarExclusaoUsuario(usuarioId) {
 
   toggleLoading(true);
   axios
-    .delete(API_ROUTES.USUARIO_DETALHES(usuarioId)) // DELETE /auth/usuarios/{id}
+    .delete(API_ROUTES.USUARIO_DETALHES(usuarioId))
     .then((response) => {
       showNotification(
         response.data.message || "Usuário excluído com sucesso!",
-        "success"
+        "success",
       );
       const modalEl = document.getElementById("modalConfirmarExclusaoUsuario");
       if (modalEl) {
@@ -404,16 +343,16 @@ function executarExclusaoUsuario(usuarioId) {
           bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
         modal.hide();
       }
-      carregarUsuarios(true); // Força recarregar da API para ter os dados mais recentes
+      carregarUsuarios(true);
     })
     .catch((error) => {
       console.error(
         "Erro ao excluir usuário:",
-        error.response ? error.response.data : error.message
+        error.response ? error.response.data : error.message,
       );
       const msg = error.response?.data?.error || "Erro ao excluir usuário.";
       showNotification(msg, "danger");
-      // Mesmo com erro, fechar o modal de confirmação
+
       const modalEl = document.getElementById("modalConfirmarExclusaoUsuario");
       if (modalEl) {
         const modal =

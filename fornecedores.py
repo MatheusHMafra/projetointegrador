@@ -10,20 +10,16 @@ from flask import (
     url_for,
     current_app,
 )
-from database_utils import get_db  # Assuming get_db is correctly configured
-from auth import login_required, acesso_requerido  # Auth decorators
+from database_utils import get_db
+from auth import login_required, acesso_requerido
 
-# Blueprint para fornecedores
-# Adicionado url_prefix para consistência e para evitar colisões de nome de rota
+
 fornecedores_bp = Blueprint(
     "fornecedores", __name__, url_prefix="/fornecedores")
 
 
-# --- Rotas da API ---
-
-
 @fornecedores_bp.route("/", methods=["GET", "POST"])
-@login_required  # Requer login para todas as operações neste endpoint
+@login_required
 def gerenciar_todos_fornecedores():
     """
     GET: Lista fornecedores com paginação, filtros e contagem de produtos.
@@ -35,8 +31,7 @@ def gerenciar_todos_fornecedores():
         cursor = conn.cursor()
 
         if request.method == "GET":
-            # Verificar permissão para listar
-            # (Pode ser ajustado se operadores também puderem ver)
+
             if session.get("user_level") not in ["admin", "gerente", "operador"]:
                 return (
                     jsonify(
@@ -47,42 +42,35 @@ def gerenciar_todos_fornecedores():
 
             page = request.args.get("page", 1, type=int)
             per_page = request.args.get("per_page", 10, type=int)
-            ativo_filter_str = request.args.get(
-                "ativo")  # 'true', 'false', ou None
+            ativo_filter_str = request.args.get("ativo")
             busca_termo = request.args.get("busca")
-            ordenar_por = request.args.get(
-                "ordenar", "f.nome")  # Coluna de ordenação
-            direcao_ordem = request.args.get(
-                "direcao", "asc").upper()  # ASC ou DESC
+            ordenar_por = request.args.get("ordenar", "f.nome")
+            direcao_ordem = request.args.get("direcao", "asc").upper()
 
-            # Validação da ordenação para segurança
             colunas_permitidas_ordem = [
                 "f.nome",
                 "f.cnpj",
                 "f.email",
                 "f.data_cadastro",
-                # Note: total_produtos_agg is an alias, ensure it works with your SQLite version or adjust
                 "total_produtos_agg",
             ]
             if ordenar_por not in colunas_permitidas_ordem:
-                ordenar_por = "f.nome"  # Padrão seguro
+                ordenar_por = "f.nome"
             if direcao_ordem not in ["ASC", "DESC"]:
-                direcao_ordem = "ASC"  # Padrão seguro
+                direcao_ordem = "ASC"
 
             params_where = []
 
-            # Subquery para contagem de produtos por fornecedor
             produtos_count_subquery = """
                 (SELECT COUNT(p.id) FROM produto p WHERE p.fornecedor_id = f.id)
             """
 
-            # Base da query de listagem
             query_select_base = f"""
                 SELECT f.id, f.nome, f.cnpj, f.telefone, f.email, f.contato, f.ativo,
                        {produtos_count_subquery} as total_produtos
                 FROM fornecedores f
             """
-            # Base da query de contagem total de fornecedores
+
             query_count_base = "SELECT COUNT(f.id) FROM fornecedores f"
 
             where_clauses = []
@@ -103,7 +91,6 @@ def gerenciar_todos_fornecedores():
             if where_clauses:
                 where_sql = " WHERE " + " AND ".join(where_clauses)
 
-            # Executar query de contagem total de fornecedores
             cursor.execute(query_count_base + where_sql, params_where)
             total_fornecedores = cursor.fetchone()[0]
             total_pages = (
@@ -111,7 +98,6 @@ def gerenciar_todos_fornecedores():
                  1) // per_page if per_page > 0 else 1
             )
 
-            # Adapt order by for alias if necessary
             order_by_expression = ordenar_por
             if ordenar_por == "total_produtos_agg":
                 order_by_expression = f"({produtos_count_subquery})"
@@ -141,7 +127,7 @@ def gerenciar_todos_fornecedores():
             )
 
         elif request.method == "POST":
-            # Verificar permissão para adicionar
+
             if session.get("user_level") not in ["admin", "gerente"]:
                 return (
                     jsonify(
@@ -154,37 +140,37 @@ def gerenciar_todos_fornecedores():
                 return jsonify({"error": "Nome do fornecedor é obrigatório."}), 400
 
             nome = data["nome"].strip()
-            cnpj = (
-                data.get("cnpj", "").strip() or None
-            )  # CNPJ é opcional, mas se fornecido, deve ser único
+            cnpj = data.get("cnpj", "").strip() or None
             email = data.get("email", "").strip() or None
             telefone = data.get("telefone", "").strip() or None
             endereco = data.get("endereco", "").strip() or None
             contato = data.get("contato", "").strip() or None
             observacoes = data.get("observacoes", "").strip() or None
-            ativo = bool(data.get("ativo", True))  # Padrão para ativo
+            ativo = bool(data.get("ativo", True))
 
             import re
+
             if email and not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
                 return jsonify({"error": "E-mail com formato inválido."}), 400
             if cnpj:
                 cnpj_limpo = re.sub(r"\D", "", cnpj)
                 if len(cnpj_limpo) != 14:
-                    return jsonify({"error": "CNPJ deve conter exatamente 14 dígitos."}), 400
+                    return (
+                        jsonify(
+                            {"error": "CNPJ deve conter exatamente 14 dígitos."}),
+                        400,
+                    )
 
-            # Verificar se CNPJ já existe, se fornecido
             if cnpj:
-                # Corrected table name
+
                 cursor.execute(
                     "SELECT id FROM fornecedores WHERE cnpj = ?", (cnpj,))
                 if cursor.fetchone():
                     return (
                         jsonify({"error": "CNPJ já cadastrado."}),
                         409,
-                    )  # 409 Conflict
+                    )
 
-            # Inserir novo fornecedor
-            # Corrected table name
             sql_insert = """
                 INSERT INTO fornecedores 
                 (nome, cnpj, email, telefone, endereco, contato, observacoes, ativo, data_cadastro, ultima_atualizacao)
@@ -213,7 +199,7 @@ def gerenciar_todos_fornecedores():
                     }
                 ),
                 201,
-            )  # 201 Created
+            )
 
     except sqlite3.Error as e:
         if conn and request.method == "POST":
@@ -246,8 +232,6 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        # Buscar fornecedor para todas as operações
-        # Corrected table name
         cursor.execute(
             "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor_row = cursor.fetchone()
@@ -258,7 +242,7 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
         fornecedor_dict = dict(fornecedor_row)
 
         if request.method == "GET":
-            # Opcional: Adicionar contagem de produtos ou lista resumida de produtos
+
             cursor.execute(
                 "SELECT COUNT(id) as total_produtos FROM produto WHERE fornecedor_id = ?",
                 (fornecedor_id,),
@@ -285,7 +269,6 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
             update_fields = []
             params_update = []
 
-            # Campos permitidos para atualização
             allowed_to_update = [
                 "nome",
                 "cnpj",
@@ -301,22 +284,32 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                 if field in data:
                     if field == "email" and data[field]:
                         import re
+
                         if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", data[field]):
-                            return jsonify({"error": "E-mail com formato inválido."}), 400
+                            return (
+                                jsonify(
+                                    {"error": "E-mail com formato inválido."}),
+                                400,
+                            )
 
                     if field == "cnpj" and data[field]:
                         import re
+
                         cnpj_limpo = re.sub(r"\D", "", data[field])
                         if len(cnpj_limpo) != 14:
-                            return jsonify({"error": "CNPJ deve conter exatamente 14 dígitos."}), 400
+                            return (
+                                jsonify(
+                                    {"error": "CNPJ deve conter exatamente 14 dígitos."}
+                                ),
+                                400,
+                            )
 
-                    # Validação específica para CNPJ (se diferente do atual)
                     if (
                         field == "cnpj"
                         and data[field] != fornecedor_dict["cnpj"]
                         and data[field]
                     ):
-                        # Corrected table name
+
                         cursor.execute(
                             "SELECT id FROM fornecedores WHERE cnpj = ? AND id != ?",
                             (data[field], fornecedor_id),
@@ -334,15 +327,14 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                     update_fields.append(f"{field} = ?")
                     params_update.append(
                         data[field] if data[field] is not None else None
-                    )  # Permite setar para NULL se o campo aceitar
+                    )
 
             if not update_fields:
                 return jsonify({"message": "Nenhuma alteração detectada."}), 200
 
             update_fields.append("ultima_atualizacao = CURRENT_TIMESTAMP")
-            params_update.append(fornecedor_id)  # Para a cláusula WHERE
+            params_update.append(fornecedor_id)
 
-            # Corrected table name
             sql_update = (
                 f"UPDATE fornecedores SET {', '.join(update_fields)} WHERE id = ?"
             )
@@ -350,8 +342,6 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
             cursor.execute(sql_update, params_update)
             conn.commit()
 
-            # Buscar dados atualizados para retornar
-            # Corrected table name
             cursor.execute(
                 "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
             fornecedor_atualizado = dict(cursor.fetchone())
@@ -364,7 +354,7 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
             )
 
         elif request.method == "DELETE":
-            # Apenas admin pode excluir
+
             if session.get("user_level") not in ["admin"]:
                 return (
                     jsonify(
@@ -372,7 +362,6 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                     403,
                 )
 
-            # Verificar se existem produtos associados a este fornecedor
             cursor.execute(
                 "SELECT COUNT(id) FROM produto WHERE fornecedor_id = ?",
                 (fornecedor_id,),
@@ -386,7 +375,7 @@ def gerenciar_fornecedor_especifico(fornecedor_id):
                     ),
                     400,
                 )
-            # Corrected table name
+
             cursor.execute(
                 "DELETE FROM fornecedores WHERE id = ?", (fornecedor_id,))
             conn.commit()
@@ -422,8 +411,6 @@ def listar_produtos_do_fornecedor(fornecedor_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        # Verificar se o fornecedor existe
-        # Corrected table name
         cursor.execute(
             "SELECT id, nome FROM fornecedores WHERE id = ?", (fornecedor_id,)
         )
@@ -432,11 +419,8 @@ def listar_produtos_do_fornecedor(fornecedor_id):
             return jsonify({"error": "Fornecedor não encontrado."}), 404
 
         page = request.args.get("page", 1, type=int)
-        per_page = request.args.get(
-            "per_page", 5, type=int
-        )  # Menos produtos por página no modal
+        per_page = request.args.get("per_page", 5, type=int)
 
-        # Contar total de produtos do fornecedor
         cursor.execute(
             "SELECT COUNT(id) FROM produto WHERE fornecedor_id = ?", (fornecedor_id,)
         )
@@ -444,7 +428,6 @@ def listar_produtos_do_fornecedor(fornecedor_id):
         total_pages = (total_produtos + per_page -
                        1) // per_page if per_page > 0 else 1
 
-        # Buscar produtos paginados com nome da categoria
         sql_produtos = """
             SELECT p.id, p.codigo, p.nome, p.preco, p.preco_compra, p.estoque, c.nome as categoria_nome
             FROM produto p
@@ -499,7 +482,7 @@ def alternar_status_fornecedor(fornecedor_id):
     try:
         conn = get_db()
         cursor = conn.cursor()
-        # Corrected table name
+
         cursor.execute(
             "SELECT ativo FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor_status = cursor.fetchone()
@@ -507,7 +490,7 @@ def alternar_status_fornecedor(fornecedor_id):
             return jsonify({"error": "Fornecedor não encontrado."}), 404
 
         novo_status = not fornecedor_status["ativo"]
-        # Corrected table name
+
         cursor.execute(
             "UPDATE fornecedores SET ativo = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
             (novo_status, fornecedor_id),
@@ -541,11 +524,6 @@ def alternar_status_fornecedor(fornecedor_id):
             conn.close()
 
 
-# --- Rotas de Página HTML (se aplicável) ---
-# Geralmente, a listagem e formulários são carregados via JS que consome as APIs acima.
-# Estas rotas apenas servem o template base.
-
-
 @fornecedores_bp.route("/page", methods=["GET"])
 @login_required
 def fornecedores_page_html():
@@ -553,16 +531,13 @@ def fornecedores_page_html():
     return render_template("fornecedores.html")
 
 
-# Se você tiver páginas separadas para adicionar/editar (não apenas modais):
 @fornecedores_bp.route("/adicionar/page", methods=["GET"])
 @login_required
 @acesso_requerido(["admin", "gerente"])
 def adicionar_fornecedor_page_html():
     """Renderiza a página/formulário para adicionar um novo fornecedor."""
-    # Esta rota pode não ser necessária se a adição for feita via modal na página principal.
-    return render_template(
-        "adicionar_fornecedor.html"  # Ensure this template exists if used, or remove route
-    )
+
+    return render_template("adicionar_fornecedor.html")
 
 
 @fornecedores_bp.route("/editar/<int:fornecedor_id>/page", methods=["GET"])
@@ -570,24 +545,21 @@ def adicionar_fornecedor_page_html():
 @acesso_requerido(["admin", "gerente"])
 def editar_fornecedor_page_html(fornecedor_id):
     """Renderiza a página/formulário para editar um fornecedor."""
-    # Esta rota pode não ser necessária se a edição for feita via modal.
-    # Se usada, buscaria os dados do fornecedor aqui para passar ao template.
+
     conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
-        # Corrected table name
+
         cursor.execute(
             "SELECT * FROM fornecedores WHERE id = ?", (fornecedor_id,))
         fornecedor = cursor.fetchone()
         if not fornecedor:
             flash("Fornecedor não encontrado.", "danger")
-            return redirect(
-                url_for("fornecedores.fornecedores_page_html")
-            )  # Corrected redirect
+            return redirect(url_for("fornecedores.fornecedores_page_html"))
         return render_template(
             "editar_fornecedor.html",
-            fornecedor=dict(fornecedor),  # Ensure this template exists if used
+            fornecedor=dict(fornecedor),
         )
     except Exception as e:
         flash("Erro ao carregar dados do fornecedor para edição.", "danger")
@@ -595,9 +567,7 @@ def editar_fornecedor_page_html(fornecedor_id):
             f"Erro ao carregar fornecedor {fornecedor_id} para edição: {e}",
             exc_info=True,
         )
-        return redirect(
-            url_for("fornecedores.fornecedores_page_html")
-        )  # Corrected redirect
+        return redirect(url_for("fornecedores.fornecedores_page_html"))
     finally:
         if conn:
             conn.close()

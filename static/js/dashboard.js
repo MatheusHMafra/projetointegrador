@@ -1,6 +1,3 @@
-// Configuração global do Axios (se não estiver em app.js, pode ser definida aqui)
-// axios.defaults.headers.post['Content-Type'] = 'application/json';
-
 let graficoMovimentacao;
 let graficoMaisVendidos;
 let graficoMenosVendidos;
@@ -21,7 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     criarGraficoMovimentacao(),
   ])
     .catch((error) => {
-      console.warn("Uma ou mais APIs falharam, mas o dashboard continuará carregando.", error);
+      console.warn(
+        "Uma ou mais APIs falharam, mas o dashboard continuará carregando.",
+        error,
+      );
     })
     .finally(() => {
       if (initialSpinner) {
@@ -49,7 +49,9 @@ function configurarBuscaProdutosDashboard() {
 
 function carregarEstatisticas() {
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.DASHBOARD_STATS) {
-    console.error("Erro de Configuração: API_ROUTES.DASHBOARD_STATS não definido.");
+    console.error(
+      "Erro de Configuração: API_ROUTES.DASHBOARD_STATS não definido.",
+    );
     return Promise.reject("API_ROUTES.DASHBOARD_STATS não definido.");
   }
 
@@ -63,11 +65,16 @@ function carregarEstatisticas() {
       const valorEstoqueEl = document.getElementById("valor-estoque");
       const estoqueBaixoEl = document.getElementById("estoque-baixo");
 
-      if (totalProdutosEl) totalProdutosEl.textContent = data.total_produtos ?? "0";
-      if (totalCategoriasEl) totalCategoriasEl.textContent = data.total_categorias ?? "0";
-      if (estoqueBaixoEl) estoqueBaixoEl.textContent = data.produtos_estoque_baixo ?? "0";
+      if (totalProdutosEl)
+        totalProdutosEl.textContent = data.total_produtos ?? "0";
+      if (totalCategoriasEl)
+        totalCategoriasEl.textContent = data.total_categorias ?? "0";
+      if (estoqueBaixoEl)
+        estoqueBaixoEl.textContent = data.produtos_estoque_baixo ?? "0";
       if (valorEstoqueEl) {
-        valorEstoqueEl.textContent = `R$ ${(data.valor_total_estoque || 0).toLocaleString("pt-BR", {
+        valorEstoqueEl.textContent = `R$ ${(
+          data.valor_total_estoque || 0
+        ).toLocaleString("pt-BR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}`;
@@ -78,20 +85,31 @@ function carregarEstatisticas() {
         inativosEl.textContent = data.produtos_inativos || "0";
       }
 
-      criarGraficoClassificacao("graficoEntradasClassificacao", data.entradas_por_classificacao, true);
-      criarGraficoClassificacao("graficoSaidasClassificacao", data.saidas_por_classificacao, false);
+      criarGraficoClassificacao(
+        "graficoEntradasClassificacao",
+        data.entradas_por_classificacao,
+        true,
+      );
+      criarGraficoClassificacao(
+        "graficoSaidasClassificacao",
+        data.saidas_por_classificacao,
+        false,
+      );
     })
     .catch((error) => {
-      console.error("Erro ao carregar estatísticas:", error.response ? error.response.data : error.message);
+      console.error(
+        "Erro ao carregar estatísticas:",
+        error.response ? error.response.data : error.message,
+      );
       showNotification("Falha ao carregar estatísticas.", "danger");
     });
 }
 
-
-
 function carregarProdutosMaisVendidos() {
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_MAIS_VENDIDOS) {
-    console.error("Erro de Configuração: API_ROUTES.PRODUTOS_MAIS_VENDIDOS não definido.");
+    console.error(
+      "Erro de Configuração: API_ROUTES.PRODUTOS_MAIS_VENDIDOS não definido.",
+    );
     return Promise.reject("PRODUTOS_MAIS_VENDIDOS não definido.");
   }
 
@@ -107,54 +125,66 @@ function carregarProdutosMaisVendidos() {
         graficoMaisVendidos.destroy();
       }
 
-      const labels = produtos.map(p => p.nome || p.produto_nome || "N/A");
-      const values = produtos.map(p => p.total_vendido || 0);
+      const labels = produtos.map((p) => p.nome || p.produto_nome || "N/A");
+      const values = produtos.map((p) => p.total_vendido || 0);
 
-      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const theme =
+        document.documentElement.getAttribute("data-theme") || "dark";
       const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
       const barColor = theme === "dark" ? "#2ecc71" : "#28a745";
-      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+      const gridColor =
+        theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
 
       graficoMaisVendidos = new Chart(ctx, {
-        type: 'bar',
+        type: "bar",
         data: {
           labels: labels,
-          datasets: [{
-            label: 'Qtd. Vendida',
-            data: values,
-            backgroundColor: barColor,
-            borderRadius: 5,
-            borderWidth: 0
-          }]
+          datasets: [
+            {
+              label: "Qtd. Vendida",
+              data: values,
+              backgroundColor: barColor,
+              borderRadius: 5,
+              borderWidth: 0,
+            },
+          ],
         },
         options: {
-          indexAxis: 'y',
+          indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false }
+            legend: { display: false },
           },
           scales: {
             x: {
               grid: { color: gridColor },
-              ticks: { color: fontColor, precision: 0 }
+              ticks: { color: fontColor, precision: 0 },
             },
             y: {
               grid: { display: false },
-              ticks: { color: fontColor }
-            }
-          }
-        }
+              ticks: { color: fontColor },
+            },
+          },
+        },
       });
     })
     .catch((error) => {
-      console.error("Erro ao carregar produtos mais vendidos:", error.response ? error.response.data : error.message);
+      console.error(
+        "Erro ao carregar produtos mais vendidos:",
+        error.response ? error.response.data : error.message,
+      );
     });
 }
 
 function carregarProdutosMenosVendidos() {
-  if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_MENOS_VENDIDOS) {
-    console.error("Erro de Configuração: API_ROUTES.PRODUTOS_MENOS_VENDIDOS não definido.");
+  if (
+    typeof API_ROUTES === "undefined" ||
+    !API_ROUTES.PRODUTOS_MENOS_VENDIDOS
+  ) {
+    console.error(
+      "Erro de Configuração: API_ROUTES.PRODUTOS_MENOS_VENDIDOS não definido.",
+    );
     return Promise.reject("PRODUTOS_MENOS_VENDIDOS não definido.");
   }
 
@@ -170,54 +200,66 @@ function carregarProdutosMenosVendidos() {
         graficoMenosVendidos.destroy();
       }
 
-      const labels = produtos.map(p => p.nome || p.produto_nome || "N/A");
-      const values = produtos.map(p => p.total_vendido || 0);
+      const labels = produtos.map((p) => p.nome || p.produto_nome || "N/A");
+      const values = produtos.map((p) => p.total_vendido || 0);
 
-      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const theme =
+        document.documentElement.getAttribute("data-theme") || "dark";
       const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
       const barColor = theme === "dark" ? "#e74c3c" : "#dc3545";
-      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+      const gridColor =
+        theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
 
       graficoMenosVendidos = new Chart(ctx, {
-        type: 'bar',
+        type: "bar",
         data: {
           labels: labels,
-          datasets: [{
-            label: 'Qtd. Vendida',
-            data: values,
-            backgroundColor: barColor,
-            borderRadius: 5,
-            borderWidth: 0
-          }]
+          datasets: [
+            {
+              label: "Qtd. Vendida",
+              data: values,
+              backgroundColor: barColor,
+              borderRadius: 5,
+              borderWidth: 0,
+            },
+          ],
         },
         options: {
-          indexAxis: 'y',
+          indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false }
+            legend: { display: false },
           },
           scales: {
             x: {
               grid: { color: gridColor },
-              ticks: { color: fontColor, precision: 0 }
+              ticks: { color: fontColor, precision: 0 },
             },
             y: {
               grid: { display: false },
-              ticks: { color: fontColor }
-            }
-          }
-        }
+              ticks: { color: fontColor },
+            },
+          },
+        },
       });
     })
     .catch((error) => {
-      console.error("Erro ao carregar produtos menos vendidos:", error.response ? error.response.data : error.message);
+      console.error(
+        "Erro ao carregar produtos menos vendidos:",
+        error.response ? error.response.data : error.message,
+      );
     });
 }
 
 function criarGraficoMovimentacao() {
-  if (typeof API_ROUTES === "undefined" || !API_ROUTES.ESTOQUE_MOVIMENTACOES_GRAFICO) {
-    console.error("Erro de Configuração: API_ROUTES.ESTOQUE_MOVIMENTACOES_GRAFICO não definido.");
+  if (
+    typeof API_ROUTES === "undefined" ||
+    !API_ROUTES.ESTOQUE_MOVIMENTACOES_GRAFICO
+  ) {
+    console.error(
+      "Erro de Configuração: API_ROUTES.ESTOQUE_MOVIMENTACOES_GRAFICO não definido.",
+    );
     return Promise.reject("ESTOQUE_MOVIMENTACOES_GRAFICO não definido.");
   }
 
@@ -233,8 +275,10 @@ function criarGraficoMovimentacao() {
         graficoMovimentacao.destroy();
       }
 
-      const theme = document.documentElement.getAttribute("data-theme") || "dark";
-      const gridColor = theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+      const theme =
+        document.documentElement.getAttribute("data-theme") || "dark";
+      const gridColor =
+        theme === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
       const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
       const entradaColor = theme === "dark" ? "#2ecc71" : "#28a745";
       const saidaColor = theme === "dark" ? "#e74c3c" : "#dc3545";
@@ -248,7 +292,10 @@ function criarGraficoMovimentacao() {
               label: "Entradas",
               data: data.entradas || [],
               borderColor: entradaColor,
-              backgroundColor: Chart.helpers.color(entradaColor).alpha(0.1).rgbString(),
+              backgroundColor: Chart.helpers
+                .color(entradaColor)
+                .alpha(0.1)
+                .rgbString(),
               fill: true,
               tension: 0.3,
               pointBackgroundColor: entradaColor,
@@ -259,7 +306,10 @@ function criarGraficoMovimentacao() {
               label: "Saídas",
               data: data.saidas || [],
               borderColor: saidaColor,
-              backgroundColor: Chart.helpers.color(saidaColor).alpha(0.1).rgbString(),
+              backgroundColor: Chart.helpers
+                .color(saidaColor)
+                .alpha(0.1)
+                .rgbString(),
               fill: true,
               tension: 0.3,
               pointBackgroundColor: saidaColor,
@@ -303,15 +353,25 @@ function criarGraficoMovimentacao() {
       });
     })
     .catch((error) => {
-      console.error("Erro ao carregar dados do gráfico de movimentação:", error.response ? error.response.data : error.message);
+      console.error(
+        "Erro ao carregar dados do gráfico de movimentação:",
+        error.response ? error.response.data : error.message,
+      );
       const canvas = document.getElementById("graficoMovimentacao");
       if (canvas) {
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = "14px Roboto, sans-serif";
-        ctx.fillStyle = document.documentElement.getAttribute("data-theme") === "dark" ? "#dfe6e9" : "#555";
+        ctx.fillStyle =
+          document.documentElement.getAttribute("data-theme") === "dark"
+            ? "#dfe6e9"
+            : "#555";
         ctx.textAlign = "center";
-        ctx.fillText("Falha ao carregar dados do gráfico.", canvas.width / 2, canvas.height / 2);
+        ctx.fillText(
+          "Falha ao carregar dados do gráfico.",
+          canvas.width / 2,
+          canvas.height / 2,
+        );
       }
     });
 }
@@ -328,7 +388,10 @@ function criarGraficoClassificacao(canvasId, dados, isEntrada) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
-  if (canvasId === "graficoEntradasClassificacao" && graficoEntradasClassificacao) {
+  if (
+    canvasId === "graficoEntradasClassificacao" &&
+    graficoEntradasClassificacao
+  ) {
     graficoEntradasClassificacao.destroy();
   }
   if (canvasId === "graficoSaidasClassificacao" && graficoSaidasClassificacao) {
@@ -338,36 +401,29 @@ function criarGraficoClassificacao(canvasId, dados, isEntrada) {
   const theme = document.documentElement.getAttribute("data-theme") || "dark";
   const fontColor = theme === "dark" ? "#dfe6e9" : "#495057";
 
-  const mapLabels = isEntrada ? {
-    'reposicao': 'Reposição',
-    'devolucao': 'Devolução Cliente',
-    'outro': 'Outro Motivo'
-  } : {
-    'venda': 'Venda',
-    'roubo': 'Roubo',
-    'dano': 'Dano / Avaria',
-    'devolucao_fornecedor': 'Devol. Fornecedor',
-    'descarte': 'Descarte',
-    'outro': 'Outro Motivo'
-  };
+  const mapLabels = isEntrada
+    ? {
+        reposicao: "Reposição",
+        devolucao: "Devolução Cliente",
+        outro: "Outro Motivo",
+      }
+    : {
+        venda: "Venda",
+        roubo: "Roubo",
+        dano: "Dano / Avaria",
+        devolucao_fornecedor: "Devol. Fornecedor",
+        descarte: "Descarte",
+        outro: "Outro Motivo",
+      };
 
-  const colors = isEntrada ? [
-    '#2ecc71', // green
-    '#3498db', // blue
-    '#95a5a6'  // grey
-  ] : [
-    '#f1c40f', // yellow (venda)
-    '#e74c3c', // red (roubo)
-    '#e67e22', // orange (dano)
-    '#9b59b6', // purple (devolucao_fornecedor)
-    '#d35400', // pumpkin (descarte)
-    '#95a5a6'  // grey (outro)
-  ];
+  const colors = isEntrada
+    ? ["#2ecc71", "#3498db", "#95a5a6"]
+    : ["#f1c40f", "#e74c3c", "#e67e22", "#9b59b6", "#d35400", "#95a5a6"];
 
   const labels = [];
   const values = [];
-  
-  Object.keys(dados || {}).forEach(key => {
+
+  Object.keys(dados || {}).forEach((key) => {
     labels.push(mapLabels[key] || key);
     values.push(dados[key] || 0);
   });
@@ -378,25 +434,27 @@ function criarGraficoClassificacao(canvasId, dados, isEntrada) {
   }
 
   const chart = new Chart(ctx, {
-    type: 'doughnut',
+    type: "doughnut",
     data: {
       labels: labels,
-      datasets: [{
-        data: values,
-        backgroundColor: colors.slice(0, labels.length),
-        borderWidth: 0
-      }]
+      datasets: [
+        {
+          data: values,
+          backgroundColor: colors.slice(0, labels.length),
+          borderWidth: 0,
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'right',
-          labels: { color: fontColor, boxWidth: 12 }
-        }
-      }
-    }
+          position: "right",
+          labels: { color: fontColor, boxWidth: 12 },
+        },
+      },
+    },
   });
 
   if (canvasId === "graficoEntradasClassificacao") {
@@ -414,16 +472,22 @@ function atualizarDadosDashboard() {
 }
 
 function configurarFormulariosDashboard() {
-  const modalAdicionarProdutoEl = document.getElementById("modalAdicionarProduto");
+  const modalAdicionarProdutoEl = document.getElementById(
+    "modalAdicionarProduto",
+  );
   if (!modalAdicionarProdutoEl) return;
 
-  const formAdicionarProduto = modalAdicionarProdutoEl.querySelector("#formAdicionarProduto");
+  const formAdicionarProduto = modalAdicionarProdutoEl.querySelector(
+    "#formAdicionarProduto",
+  );
   if (formAdicionarProduto) {
     formAdicionarProduto.addEventListener("submit", (event) => {
       event.preventDefault();
 
       if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_LISTAR) {
-        console.error("Erro de Configuração: API_ROUTES.PRODUTOS_LISTAR (POST) não definido.");
+        console.error(
+          "Erro de Configuração: API_ROUTES.PRODUTOS_LISTAR (POST) não definido.",
+        );
         showNotification("Erro de configuração ao salvar produto.", "danger");
         return;
       }
@@ -432,28 +496,57 @@ function configurarFormulariosDashboard() {
       const dadosProduto = {
         codigo: document.getElementById("codigoProduto")?.value?.trim() || null,
         nome: document.getElementById("nomeProduto")?.value?.trim() || null,
-        categoria_id: document.getElementById("categoriaProduto")?.value || null,
-        fornecedor_id: document.getElementById("fornecedorProduto")?.value ? parseInt(document.getElementById("fornecedorProduto").value, 10) : null,
+        categoria_id:
+          document.getElementById("categoriaProduto")?.value || null,
+        fornecedor_id: document.getElementById("fornecedorProduto")?.value
+          ? parseInt(document.getElementById("fornecedorProduto").value, 10)
+          : null,
         preco: parseFloat(document.getElementById("precoProduto")?.value),
-        preco_compra: parseFloat(document.getElementById("precoCompraProduto")?.value) || null,
-        estoque: parseInt(document.getElementById("estoqueProduto")?.value || "0", 10),
-        estoque_minimo: parseInt(document.getElementById("estoqueMinimoProduto")?.value || "0", 10),
+        preco_compra:
+          parseFloat(document.getElementById("precoCompraProduto")?.value) ||
+          null,
+        estoque: parseInt(
+          document.getElementById("estoqueProduto")?.value || "0",
+          10,
+        ),
+        estoque_minimo: parseInt(
+          document.getElementById("estoqueMinimoProduto")?.value || "0",
+          10,
+        ),
         descricao: document.getElementById("descricaoProduto")?.value || "",
       };
 
-      if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco || !dadosProduto.codigo || !dadosProduto.fornecedor_id) {
-        showNotification("Código, Nome, Categoria, Fornecedor e Preço de Venda são obrigatórios.", "warning");
+      if (
+        !dadosProduto.nome ||
+        !dadosProduto.categoria_id ||
+        !dadosProduto.preco ||
+        !dadosProduto.codigo ||
+        !dadosProduto.fornecedor_id
+      ) {
+        showNotification(
+          "Código, Nome, Categoria, Fornecedor e Preço de Venda são obrigatórios.",
+          "warning",
+        );
         toggleLoading(false);
         return;
       }
 
-      if (dadosProduto.preco_compra !== null && dadosProduto.preco_compra <= 0) {
-        showNotification("O preço de compra deve ser maior que zero.", "warning");
+      if (
+        dadosProduto.preco_compra !== null &&
+        dadosProduto.preco_compra <= 0
+      ) {
+        showNotification(
+          "O preço de compra deve ser maior que zero.",
+          "warning",
+        );
         toggleLoading(false);
         return;
       }
       if (dadosProduto.preco <= 0) {
-        showNotification("O preço de venda deve ser maior que zero.", "warning");
+        showNotification(
+          "O preço de venda deve ser maior que zero.",
+          "warning",
+        );
         toggleLoading(false);
         return;
       }
@@ -471,13 +564,18 @@ function configurarFormulariosDashboard() {
       axios
         .post(API_ROUTES.PRODUTOS_LISTAR, dadosProduto)
         .then((response) => {
-          showNotification(response.data.message || "Produto adicionado com sucesso!", "success");
+          showNotification(
+            response.data.message || "Produto adicionado com sucesso!",
+            "success",
+          );
           bootstrap.Modal.getInstance(modalAdicionarProdutoEl).hide();
           formAdicionarProduto.reset();
           carregarEstatisticas();
         })
         .catch((error) => {
-          const errorMsg = error.response?.data?.error || "Erro ao adicionar produto. Verifique os dados.";
+          const errorMsg =
+            error.response?.data?.error ||
+            "Erro ao adicionar produto. Verifique os dados.";
           showNotification(errorMsg, "danger");
         })
         .finally(() => {
@@ -497,7 +595,9 @@ function carregarOpcoesCategoriasParaModal(selectId) {
   if (!selectEl) return;
 
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.CATEGORIAS_LISTAR) {
-    console.error("Erro de Configuração: API_ROUTES.CATEGORIAS_LISTAR não definido.");
+    console.error(
+      "Erro de Configuração: API_ROUTES.CATEGORIAS_LISTAR não definido.",
+    );
     selectEl.innerHTML = '<option value="">Erro Config API</option>';
     return;
   }
@@ -505,7 +605,8 @@ function carregarOpcoesCategoriasParaModal(selectId) {
   axios
     .get(API_ROUTES.CATEGORIAS_LISTAR)
     .then((response) => {
-      selectEl.innerHTML = '<option value="">Selecione uma categoria...</option>';
+      selectEl.innerHTML =
+        '<option value="">Selecione uma categoria...</option>';
       (response.data || []).forEach((categoria) => {
         selectEl.innerHTML += `<option value="${categoria.id}">${categoria.nome}</option>`;
       });
@@ -520,15 +621,20 @@ function carregarOpcoesFornecedoresParaModal(selectId) {
   if (!selectEl) return;
 
   if (typeof API_ROUTES === "undefined" || !API_ROUTES.FORNECEDORES_LISTAR) {
-    console.error("Erro de Configuração: API_ROUTES.FORNECEDORES_LISTAR não definido.");
+    console.error(
+      "Erro de Configuração: API_ROUTES.FORNECEDORES_LISTAR não definido.",
+    );
     selectEl.innerHTML = '<option value="">Erro Config API</option>';
     return;
   }
 
   axios
-    .get(API_ROUTES.FORNECEDORES_LISTAR, { params: { ativo: 'true', per_page: 200 } })
+    .get(API_ROUTES.FORNECEDORES_LISTAR, {
+      params: { ativo: "true", per_page: 200 },
+    })
     .then((response) => {
-      selectEl.innerHTML = '<option value="">Selecione um fornecedor...</option>';
+      selectEl.innerHTML =
+        '<option value="">Selecione um fornecedor...</option>';
       const fornecedores = response.data.fornecedores || [];
       fornecedores.forEach((fornecedor) => {
         selectEl.innerHTML += `<option value="${fornecedor.id}">${fornecedor.nome}</option>`;
@@ -595,7 +701,8 @@ function carregarProdutosParaSelect(selectId) {
 function submeterEntradaProduto() {
   const produtoId = document.getElementById("produtoEntrada")?.value;
   const quantidade = document.getElementById("qtdEntrada")?.value;
-  const motivo = document.getElementById("motivoEntrada")?.value?.trim() || "Entrada manual";
+  const motivo =
+    document.getElementById("motivoEntrada")?.value?.trim() || "Entrada manual";
   const classificacao = document.getElementById("classificacaoEntrada")?.value;
 
   if (!produtoId || !quantidade || parseInt(quantidade, 10) <= 0) {
@@ -617,14 +724,22 @@ function submeterEntradaProduto() {
       classificacao: classificacao,
     })
     .then((response) => {
-      showNotification(response.data.message || "Entrada registrada com sucesso!", "success");
-      const modal = bootstrap.Modal.getInstance(document.getElementById("modalEntradaProduto"));
+      showNotification(
+        response.data.message || "Entrada registrada com sucesso!",
+        "success",
+      );
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("modalEntradaProduto"),
+      );
       if (modal) modal.hide();
       document.getElementById("formEntradaProduto")?.reset();
       atualizarDadosDashboard();
     })
     .catch((error) => {
-      showNotification(error.response?.data?.error || "Erro ao registrar entrada.", "danger");
+      showNotification(
+        error.response?.data?.error || "Erro ao registrar entrada.",
+        "danger",
+      );
     })
     .finally(() => {
       toggleLoading(false);
@@ -634,7 +749,8 @@ function submeterEntradaProduto() {
 function submeterSaidaProduto() {
   const produtoId = document.getElementById("produtoSaida")?.value;
   const quantidade = document.getElementById("qtdSaida")?.value;
-  const motivo = document.getElementById("motivoSaida")?.value?.trim() || "Saída manual";
+  const motivo =
+    document.getElementById("motivoSaida")?.value?.trim() || "Saída manual";
   const classificacao = document.getElementById("classificacaoSaida")?.value;
 
   if (!produtoId || !quantidade || parseInt(quantidade, 10) <= 0) {
@@ -656,14 +772,22 @@ function submeterSaidaProduto() {
       classificacao: classificacao,
     })
     .then((response) => {
-      showNotification(response.data.message || "Saída registrada com sucesso!", "success");
-      const modal = bootstrap.Modal.getInstance(document.getElementById("modalSaidaProduto"));
+      showNotification(
+        response.data.message || "Saída registrada com sucesso!",
+        "success",
+      );
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("modalSaidaProduto"),
+      );
       if (modal) modal.hide();
       document.getElementById("formSaidaProduto")?.reset();
       atualizarDadosDashboard();
     })
     .catch((error) => {
-      showNotification(error.response?.data?.error || "Erro ao registrar saída.", "danger");
+      showNotification(
+        error.response?.data?.error || "Erro ao registrar saída.",
+        "danger",
+      );
     })
     .finally(() => {
       toggleLoading(false);

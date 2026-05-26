@@ -12,12 +12,9 @@ from auth import (
 from datetime import datetime
 import sqlite3
 
-estoque_bp = Blueprint(
-    "estoque", __name__, url_prefix="/estoque"
-)
+estoque_bp = Blueprint("estoque", __name__, url_prefix="/estoque")
 
 
-# API para entrada de produtos no estoque
 @estoque_bp.route("/entrada", methods=["POST"])
 @login_required
 @acesso_requerido(["admin", "gerente"])
@@ -25,18 +22,15 @@ def entrada_produto():
     """Registra uma entrada de produto no estoque."""
     data = request.json
     produto_id = data.get("produto_id")
-    quantidade_str = data.get("quantidade")  # Quantidade pode vir como string
-    observacao = data.get(
-        "observacao", "Entrada manual de estoque"
-    )  # Observação padrão
+    quantidade_str = data.get("quantidade")
+    observacao = data.get("observacao", "Entrada manual de estoque")
     classificacao = data.get("classificacao")
 
-    # Validação dos dados de entrada
     if not produto_id:
         return jsonify({"error": "ID do produto é obrigatório."}), 400
 
     try:
-        # Tenta converter quantidade para inteiro
+
         quantidade = int(quantidade_str)
         if quantidade <= 0:
             raise ValueError("Quantidade deve ser um número positivo.")
@@ -49,47 +43,42 @@ def entrada_produto():
         )
 
     try:
-        # Registrar o movimento de entrada
+
         movimento_info = registrar_movimento(
             produto_id=produto_id,
             tipo="entrada",
             quantidade=quantidade,
-            usuario_id=session.get("user_id"),  # ID do usuário logado
+            usuario_id=session.get("user_id"),
             observacao=observacao,
             classificacao=classificacao,
         )
 
-        # Retornar sucesso com informações do produto atualizado
         return (
             jsonify(
                 {
                     "message": "Entrada registrada com sucesso!",
-                    "movimento": movimento_info,  # Inclui detalhes do movimento e estoque atual
+                    "movimento": movimento_info,
                 }
             ),
             201,
-        )  # 201 Created
+        )
 
-    except (
-        ValueError
-    ) as e:  # Erros de validação (ex: produto não encontrado, estoque insuficiente)
+    except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except sqlite3.Error as e:  # Erros específicos do banco de dados
+    except sqlite3.Error as e:
         current_app.logger.error(
             f"Erro de banco de dados ao registrar entrada: {e}", exc_info=True
         )
         return jsonify({"error": "Erro no banco de dados ao registrar entrada."}), 500
-    except Exception as e:  # Outros erros inesperados
+    except Exception as e:
         current_app.logger.error(
             f"Erro inesperado ao registrar entrada: {e}", exc_info=True
         )
         return jsonify({"error": "Erro inesperado ao processar a solicitação."}), 500
 
 
-# API para saída de produtos do estoque
 @estoque_bp.route("/saida", methods=["POST"])
 @login_required
-# Admin, gerente ou operador podem registrar saída
 @acesso_requerido(["admin", "gerente", "operador"])
 def saida_produto():
     """Registra uma saída de produto do estoque."""
@@ -131,10 +120,10 @@ def saida_produto():
                 }
             ),
             200,
-        )  # 200 OK (ou 201 se considerar um novo recurso 'movimento')
+        )
 
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400  # Ex: Estoque insuficiente
+        return jsonify({"error": str(e)}), 400
     except sqlite3.Error as e:
         current_app.logger.error(
             f"Erro de banco de dados ao registrar saída: {e}", exc_info=True
@@ -147,10 +136,8 @@ def saida_produto():
         return jsonify({"error": "Erro inesperado ao processar a solicitação."}), 500
 
 
-# API para ajuste de estoque
 @estoque_bp.route("/ajuste", methods=["POST"])
 @login_required
-# Apenas admin ou gerente podem ajustar
 @acesso_requerido(["admin", "gerente"])
 def ajuste_estoque():
     """Ajusta o estoque de um produto para um novo valor."""
@@ -164,7 +151,7 @@ def ajuste_estoque():
 
     try:
         novo_estoque = int(novo_estoque_str)
-        if novo_estoque < 0:  # Estoque não pode ser negativo
+        if novo_estoque < 0:
             raise ValueError("Novo valor de estoque não pode ser negativo.")
     except (ValueError, TypeError):
         return (
@@ -177,17 +164,15 @@ def ajuste_estoque():
         )
 
     try:
-        # A função registrar_movimento agora lida com tipo='ajuste'
-        # onde 'quantidade' é o novo valor absoluto do estoque.
+
         movimento_info = registrar_movimento(
             produto_id=produto_id,
             tipo="ajuste",
-            quantidade=novo_estoque,  # Passa o novo valor total do estoque
+            quantidade=novo_estoque,
             usuario_id=session.get("user_id"),
             observacao=observacao,
         )
 
-        # Avisar se estoque foi setado para zero
         aviso = None
         if novo_estoque == 0:
             aviso = "Atenção: estoque foi ajustado para zero."
@@ -217,7 +202,6 @@ def ajuste_estoque():
         return jsonify({"error": "Erro inesperado ao processar a solicitação."}), 500
 
 
-# API para obter histórico de movimentações
 @estoque_bp.route("/movimentacoes", methods=["GET"])
 @login_required
 def listar_movimentacoes():
@@ -227,15 +211,14 @@ def listar_movimentacoes():
     produto_id_filter = request.args.get("produto_id", type=int)
     tipo_filter = request.args.get("tipo")
     classificacao_filter = request.args.get("classificacao")
-    data_inicio_filter = request.args.get("data_inicio")  # Formato YYYY-MM-DD
-    data_fim_filter = request.args.get("data_fim")  # Formato YYYY-MM-DD
+    data_inicio_filter = request.args.get("data_inicio")
+    data_fim_filter = request.args.get("data_fim")
 
     conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # Construção da Query Principal e de Contagem
         query_base = """
             SELECT m.id, m.produto_id, m.tipo, m.quantidade, m.estoque_anterior,
                    m.estoque_atual, m.observacao, m.data_movimento, m.usuario_id,
@@ -263,7 +246,7 @@ def listar_movimentacoes():
             params.append(classificacao_filter)
         if data_inicio_filter:
             try:
-                # Adicionar T00:00:00 para incluir o dia inteiro
+
                 datetime.strptime(data_inicio_filter, "%Y-%m-%d")
                 conditions.append("m.data_movimento >= ?")
                 params.append(data_inicio_filter + " 00:00:00")
@@ -276,7 +259,7 @@ def listar_movimentacoes():
                 )
         if data_fim_filter:
             try:
-                # Adicionar T23:59:59 para incluir o dia inteiro
+
                 datetime.strptime(data_fim_filter, "%Y-%m-%d")
                 conditions.append("m.data_movimento <= ?")
                 params.append(data_fim_filter + " 23:59:59")
@@ -291,13 +274,11 @@ def listar_movimentacoes():
         if conditions:
             where_clause = " WHERE " + " AND ".join(conditions)
 
-        # Executar a query de contagem
         cursor.execute(count_query_base + where_clause, params)
         total_result = cursor.fetchone()
         total = total_result[0] if total_result else 0
         pages = (total + per_page - 1) // per_page if per_page > 0 else 1
 
-        # Adicionar Ordenação e Paginação à Query Principal
         query_final = query_base + where_clause + " ORDER BY m.data_movimento DESC"
         offset = (page - 1) * per_page
         query_final += " LIMIT ? OFFSET ?"
@@ -306,16 +287,15 @@ def listar_movimentacoes():
         cursor.execute(query_final, params_paginated)
         movimentos_raw = cursor.fetchall()
 
-        # Formatação dos Resultados
         resultados = []
         for m_row in movimentos_raw:
-            m = dict(m_row)  # Converter sqlite3.Row para dict
+            m = dict(m_row)
             try:
-                # Tenta formatar a data, que deve ser string ISO do SQLite
+
                 data_dt = datetime.fromisoformat(str(m["data_movimento"]))
                 data_formatada = data_dt.strftime("%d/%m/%Y %H:%M:%S")
             except (ValueError, TypeError):
-                data_formatada = str(m["data_movimento"])  # Fallback
+                data_formatada = str(m["data_movimento"])
 
             resultados.append(
                 {
@@ -333,17 +313,15 @@ def listar_movimentacoes():
                         {"id": m["usuario_id"], "nome": m["usuario_nome"]}
                         if m["usuario_id"]
                         else {"id": None, "nome": "Sistema"}
-                    ),  # Nome "Sistema" se não houver usuário
+                    ),
                     "tipo": m["tipo"],
-                    "quantidade": m["quantidade"],  # Esta é a variação
+                    "quantidade": m["quantidade"],
                     "estoque_anterior": m["estoque_anterior"],
                     "estoque_atual": m["estoque_atual"],
                     "observacao": m["observacao"],
                     "classificacao": m["classificacao"],
                     "data": data_formatada,
-                    "venda_codigo": m.get(
-                        "venda_codigo"
-                    ),  # Adiciona código da venda se houver
+                    "venda_codigo": m.get("venda_codigo"),
                 }
             )
 
@@ -375,17 +353,16 @@ def listar_movimentacoes():
             conn.close()
 
 
-# API para obter dados para gráfico de movimentação
 @estoque_bp.route("/movimentacoes/grafico", methods=["GET"])
 @login_required
 def movimentacoes_grafico_endpoint():
     """Retorna dados agregados de movimentação para gráficos."""
     dias = request.args.get("dias", 30, type=int)
-    if dias <= 0 or dias > 365:  # Limitar o período para evitar sobrecarga
+    if dias <= 0 or dias > 365:
         return jsonify({"error": "Período de dias inválido (1-365)."}), 400
 
     try:
-        # Chama a função de database_utils que prepara os dados para o gráfico
+
         dados_grafico = obter_dados_movimentacao_grafico(dias)
         return jsonify(dados_grafico)
     except Exception as e:
@@ -395,7 +372,6 @@ def movimentacoes_grafico_endpoint():
         return jsonify({"error": "Erro ao gerar dados para o gráfico."}), 500
 
 
-# API para gerenciar vendas (Criar nova venda)
 @estoque_bp.route("/vendas", methods=["GET", "POST"])
 @login_required
 def gerenciar_vendas():
@@ -407,11 +383,8 @@ def gerenciar_vendas():
 
         if request.method == "GET":
             page = request.args.get("page", 1, type=int)
-            per_page = request.args.get(
-                "per_page", 15, type=int
-            )  # Aumentado per_page padrão
+            per_page = request.args.get("per_page", 15, type=int)
 
-            # Buscar as vendas paginadas
             query = """
                 SELECT v.id, v.codigo, v.cliente_nome, v.valor_total, 
                        v.desconto, v.valor_final, v.usuario_id, v.data_venda,
@@ -426,12 +399,10 @@ def gerenciar_vendas():
             cursor.execute(query, (per_page, offset))
             vendas_raw = cursor.fetchall()
 
-            # Contar total de vendas
             cursor.execute("SELECT COUNT(id) as total FROM venda")
             total = cursor.fetchone()["total"]
             pages = (total + per_page - 1) // per_page if per_page > 0 else 1
 
-            # Formatar resultados
             resultados = []
             for v_row in vendas_raw:
                 v = dict(v_row)
@@ -448,7 +419,6 @@ def gerenciar_vendas():
                         "cliente_nome": (
                             v["cliente_nome"] if v["cliente_nome"] else "N/A"
                         ),
-                        # Renomeado para clareza
                         "valor_total_bruto": v["valor_total"],
                         "desconto": v["desconto"],
                         "valor_final": v["valor_final"],
@@ -471,11 +441,10 @@ def gerenciar_vendas():
             )
 
         elif request.method == "POST":
-            # A lógica de registrar venda foi movida para database_utils.adicionar_venda
+
             data = request.json
 
-            cliente_nome = data.get(
-                "cliente_nome", "Consumidor Final")  # Nome padrão
+            cliente_nome = data.get("cliente_nome", "Consumidor Final")
             itens = data.get("itens")
             desconto = data.get("desconto", 0.0)
             forma_pagamento = data.get("forma_pagamento")
@@ -484,7 +453,7 @@ def gerenciar_vendas():
 
             if not itens or not isinstance(itens, list):
                 return jsonify({"error": "Lista de itens é obrigatória."}), 400
-            if not usuario_id:  # Deve ser pego da sessão
+            if not usuario_id:
                 return (
                     jsonify(
                         {"error": "Usuário não autenticado para registrar venda."}),
@@ -492,8 +461,7 @@ def gerenciar_vendas():
                 )
 
             try:
-                # Chamar a função de utilitário para adicionar a venda
-                # Esta função agora lida com a transação e o registro de movimentos
+
                 venda_registrada = adicionar_venda(
                     cliente_nome=cliente_nome,
                     itens=itens,
@@ -507,13 +475,13 @@ def gerenciar_vendas():
                     jsonify(
                         {
                             "message": "Venda realizada com sucesso!",
-                            "venda": venda_registrada,  # Retorna os detalhes da venda criada
+                            "venda": venda_registrada,
                         }
                     ),
                     201,
-                )  # 201 Created
+                )
 
-            except ValueError as e:  # Erros de validação de dados ou estoque
+            except ValueError as e:
                 return jsonify({"error": str(e)}), 400
             except sqlite3.Error as e:
                 current_app.logger.error(
@@ -545,7 +513,6 @@ def gerenciar_vendas():
             conn.close()
 
 
-# API para detalhes de uma venda
 @estoque_bp.route("/vendas/<int:venda_id>", methods=["GET"])
 @login_required
 def detalhes_venda(venda_id):
@@ -555,7 +522,6 @@ def detalhes_venda(venda_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        # Buscar informações da venda
         cursor.execute(
             """
             SELECT v.id, v.codigo, v.cliente_nome, v.valor_total, v.desconto,
@@ -579,7 +545,6 @@ def detalhes_venda(venda_id):
         except (ValueError, TypeError):
             venda["data_venda_fmt"] = str(venda["data_venda"])
 
-        # Buscar itens da venda
         cursor.execute(
             """
             SELECT i.id as item_venda_id, i.produto_id, i.quantidade, i.preco_unitario, i.subtotal,
@@ -632,7 +597,6 @@ def detalhes_venda(venda_id):
             conn.close()
 
 
-# API para cancelar uma venda (apenas admin e gerente)
 @estoque_bp.route("/vendas/<int:venda_id>/cancelar", methods=["POST"])
 @login_required
 @acesso_requerido(["admin", "gerente"])
@@ -648,10 +612,9 @@ def cancelar_venda(venda_id):
             "SELECT id, codigo FROM venda WHERE id = ?", (venda_id,))
         venda = cursor.fetchone()
         if not venda:
-            conn.rollback()  # Importante reverter se a venda não existe
+            conn.rollback()
             return jsonify({"error": "Venda não encontrada."}), 404
 
-        # Buscar itens da venda para retornar ao estoque
         cursor.execute(
             "SELECT produto_id, quantidade FROM item_venda WHERE venda_id = ?",
             (venda_id,),
@@ -659,22 +622,16 @@ def cancelar_venda(venda_id):
         itens_da_venda = cursor.fetchall()
 
         for item in itens_da_venda:
-            # registrar_movimento já lida com a transação interna e erros de estoque
-            # Para aninhar corretamente, idealmente passaria a `conn` para `registrar_movimento`
-            # ou faria a lógica de estoque aqui. Por simplicidade, chamamos como está.
-            # Se `registrar_movimento` falhar, a transação externa aqui fará rollback.
+
             registrar_movimento(
                 produto_id=item["produto_id"],
-                tipo="entrada",  # Devolvendo ao estoque
+                tipo="entrada",
                 quantidade=item["quantidade"],
                 usuario_id=session.get("user_id"),
                 observacao=f"Cancelamento da Venda Cód: {venda['codigo']}",
-                venda_id=venda_id,  # Referencia a venda cancelada
+                venda_id=venda_id,
             )
 
-        # Excluir itens da venda e a venda em si
-        # ON DELETE CASCADE na tabela item_venda (se definido no schema) poderia simplificar,
-        # mas excluir explicitamente é mais claro.
         cursor.execute(
             "DELETE FROM item_venda WHERE venda_id = ?", (venda_id,))
         cursor.execute("DELETE FROM venda WHERE id = ?", (venda_id,))
@@ -685,7 +642,7 @@ def cancelar_venda(venda_id):
         )
         return jsonify({"message": "Venda cancelada com sucesso!"})
 
-    except ValueError as e:  # Erros de registrar_movimento
+    except ValueError as e:
         if conn:
             conn.rollback()
         current_app.logger.warning(
@@ -711,31 +668,23 @@ def cancelar_venda(venda_id):
             conn.close()
 
 
-# --- Rotas de Página HTML ---
-# Estas rotas apenas renderizam os templates. A lógica de dados é via API.
-
-
 @estoque_bp.route("/movimentacoes/page", methods=["GET"])
 @login_required
 def movimentacoes_page():
     """Renderiza a página de visualização de movimentações de estoque."""
-    return render_template(
-        "movimentacoes.html"
-    )  # Certifique-se que este template existe
+    return render_template("movimentacoes.html")
 
 
 @estoque_bp.route("/vendas/page", methods=["GET"])
 @login_required
 def vendas_page():
     """Renderiza a página de listagem de vendas."""
-    return render_template("vendas.html")  # Certifique-se que este template existe
+    return render_template("vendas.html")
 
 
 @estoque_bp.route("/vendas/nova", methods=["GET"])
 @login_required
-@acesso_requerido(
-    ["admin", "gerente", "operador"]
-)  # Definir quem pode criar nova venda
+@acesso_requerido(["admin", "gerente", "operador"])
 def nova_venda_page():
     """Renderiza a página para registrar uma nova venda."""
-    return render_template("nova_venda.html")  # Certifique-se que este template existe
+    return render_template("nova_venda.html")

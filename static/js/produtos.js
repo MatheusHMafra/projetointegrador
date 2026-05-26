@@ -1,240 +1,255 @@
-/**
- * GEP - Gerenciamento de Produtos
- * Script para a página de listagem e gerenciamento de produtos (produtos.html).
- */
-
-// Estado da página
-let currentPageProdutos = 1; // Renomeado para evitar conflito se outros scripts usarem currentPage
+let currentPageProdutos = 1;
 let totalPagesProdutos = 1;
 let currentFiltersProdutos = {
-    categoria_id: '',
-    fornecedor_id: '',
-    estoque_baixo: false,
-    incluir_inativos: false,
-    termo: ''
+  categoria_id: "",
+  fornecedor_id: "",
+  estoque_baixo: false,
+  incluir_inativos: false,
+  termo: "",
 };
 
-const userLevelProdutos = (window.currentUserInfo?.level || '').toLowerCase();
-const canManageProduto = ['admin', 'gerente'].includes(userLevelProdutos);
-const canDeleteProduto = userLevelProdutos === 'admin';
+const userLevelProdutos = (window.currentUserInfo?.level || "").toLowerCase();
+const canManageProduto = ["admin", "gerente"].includes(userLevelProdutos);
+const canDeleteProduto = userLevelProdutos === "admin";
 
 function assertProdutoPermission(canProceed, message) {
-    if (canProceed) return true;
-    showNotification(message || 'Você não tem permissão para esta ação.', 'warning');
-    return false;
+  if (canProceed) return true;
+  showNotification(
+    message || "Você não tem permissão para esta ação.",
+    "warning",
+  );
+  return false;
 }
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', () => {
-    // As funções showNotification e toggleLoading são esperadas de app.js
+document.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const estoqueBaixoParam = urlParams.get("estoque_baixo");
+  const incluirInativosParam = urlParams.get("incluir_inativos");
 
-    // Parse URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const estoqueBaixoParam = urlParams.get('estoque_baixo');
-    const incluirInativosParam = urlParams.get('incluir_inativos');
-    
-    if (estoqueBaixoParam === 'true') {
-        currentFiltersProdutos.estoque_baixo = true;
-    }
-    if (incluirInativosParam === 'true') {
-        currentFiltersProdutos.incluir_inativos = true;
-    }
+  if (estoqueBaixoParam === "true") {
+    currentFiltersProdutos.estoque_baixo = true;
+  }
+  if (incluirInativosParam === "true") {
+    currentFiltersProdutos.incluir_inativos = true;
+  }
 
-    const filtroEstoqueBaixoEl = document.getElementById('filtro-estoque-baixo');
-    if (filtroEstoqueBaixoEl) {
-        filtroEstoqueBaixoEl.value = currentFiltersProdutos.estoque_baixo ? 'true' : '';
-    }
-    const filtroInativosEl = document.getElementById('filtro-incluir-inativos');
-    if (filtroInativosEl) {
-        filtroInativosEl.value = currentFiltersProdutos.incluir_inativos ? 'true' : 'false';
-    }
+  const filtroEstoqueBaixoEl = document.getElementById("filtro-estoque-baixo");
+  if (filtroEstoqueBaixoEl) {
+    filtroEstoqueBaixoEl.value = currentFiltersProdutos.estoque_baixo
+      ? "true"
+      : "";
+  }
+  const filtroInativosEl = document.getElementById("filtro-incluir-inativos");
+  if (filtroInativosEl) {
+    filtroInativosEl.value = currentFiltersProdutos.incluir_inativos
+      ? "true"
+      : "false";
+  }
 
-    // Carregar dados iniciais
-    carregarOpcoesCategoriasParaFiltro('filtro-categoria'); // Nome da função mais específico
-    carregarOpcoesFornecedoresParaFiltro('filtro-fornecedor'); // Nome da função mais específico
-    carregarProdutos(); // Carrega a primeira página sem filtros
+  carregarOpcoesCategoriasParaFiltro("filtro-categoria");
+  carregarOpcoesFornecedoresParaFiltro("filtro-fornecedor");
+  carregarProdutos();
 
-    // Configurar eventos
-    configurarFiltrosProdutos(); // Renomeado
-    configurarBuscaProdutos();   // Renomeado
-    configurarModaisProdutos();  // Renomeado
-
-    // Esconder spinner inicial (geralmente em app.js ou após o primeiro carregamento de dados)
-    // toggleLoading(false); // Será chamado no finally de carregarProdutos
+  configurarFiltrosProdutos();
+  configurarBuscaProdutos();
+  configurarModaisProdutos();
 });
 
-/**
- * Carrega as opções de categoria nos selects de filtro.
- * @param {string} selectId - ID do elemento select para categorias.
- */
 function carregarOpcoesCategoriasParaFiltro(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) {
-        console.warn(`Elemento select '${selectId}' para filtro de categorias não encontrado.`);
-        return;
-    }
+  const select = document.getElementById(selectId);
+  if (!select) {
+    console.warn(
+      `Elemento select '${selectId}' para filtro de categorias não encontrado.`,
+    );
+    return;
+  }
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.CATEGORIAS_LISTAR) {
-        console.error('Erro de Configuração: API_ROUTES.CATEGORIAS_LISTAR não definido em api-routes.js.');
-        select.innerHTML = '<option value="">Erro Config API</option>';
-        showNotification('Erro ao carregar opções de categorias (Config API).', 'danger');
-        return;
-    }
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.CATEGORIAS_LISTAR) {
+    console.error(
+      "Erro de Configuração: API_ROUTES.CATEGORIAS_LISTAR não definido em api-routes.js.",
+    );
+    select.innerHTML = '<option value="">Erro Config API</option>';
+    showNotification(
+      "Erro ao carregar opções de categorias (Config API).",
+      "danger",
+    );
+    return;
+  }
 
-    axios.get(API_ROUTES.CATEGORIAS_LISTAR) // Rota: /produtos/categorias
-        .then(response => {
-            select.innerHTML = '<option value="">Todas as Categorias</option>';
-            (response.data || []).forEach(cat => { // response.data deve ser a lista de categorias
-                select.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
-            });
-        })
-        .catch(error => {
-            console.error(`Erro ao carregar categorias para ${selectId}:`, error.response ? error.response.data : error.message);
-            select.innerHTML = '<option value="">Erro ao carregar</option>';
-            showNotification('Falha ao carregar categorias.', 'danger');
-        });
-}
-
-/**
- * Carrega as opções de fornecedores nos selects de filtro.
- * @param {string} selectId - ID do elemento select para fornecedores.
- */
-function carregarOpcoesFornecedoresParaFiltro(selectId) {
-    const select = document.getElementById(selectId);
-    if (!select) {
-        console.warn(`Elemento select '${selectId}' para filtro de fornecedores não encontrado.`);
-        return;
-    }
-
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.FORNECEDORES_LISTAR) {
-        console.error('Erro de Configuração: API_ROUTES.FORNECEDORES_LISTAR não definido em api-routes.js.');
-        select.innerHTML = '<option value="">Erro Config API</option>';
-        showNotification('Erro ao carregar opções de fornecedores (Config API).', 'danger');
-        return;
-    }
-    // Busca apenas fornecedores ativos para os filtros
-    axios.get(API_ROUTES.FORNECEDORES_LISTAR, { params: { ativo: 'true', per_page: 200 } }) // per_page alto para pegar todos ativos
-        .then(response => {
-            select.innerHTML = '<option value="">Todos os Fornecedores</option>';
-            const fornecedores = response.data.fornecedores || []; // API /fornecedores retorna { fornecedores: [...] }
-            fornecedores.forEach(forn => {
-                select.innerHTML += `<option value="${forn.id}">${forn.nome}</option>`;
-            });
-        })
-        .catch(error => {
-            console.error(`Erro ao carregar fornecedores para ${selectId}:`, error.response ? error.response.data : error.message);
-            select.innerHTML = '<option value="">Erro ao carregar</option>';
-            showNotification('Falha ao carregar fornecedores.', 'danger');
-        });
-}
-
-
-/**
- * Carrega a lista de produtos do servidor com base nos filtros e página atuais.
- */
-function carregarProdutos() {
-    if (typeof API_ROUTES === 'undefined' || (!API_ROUTES.PRODUTOS_LISTAR && !API_ROUTES.PRODUTOS_BUSCA)) {
-        console.error('Erro de Configuração: Rotas de produtos (PRODUTOS_LISTAR/PRODUTOS_BUSCA) não definidas em api-routes.js.');
-        showNotification('Erro ao carregar produtos (Config API).', 'danger');
-        document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="10" class="text-center text-danger">Erro de Configuração API.</td></tr>`;
-        toggleLoading(false);
-        return;
-    }
-    toggleLoading(true);
-
-    const params = {
-        page: currentPageProdutos,
-        per_page: 15, // Itens por página
-        categoria_id: currentFiltersProdutos.categoria_id || null,
-        fornecedor_id: currentFiltersProdutos.fornecedor_id || null,
-        estoque_baixo: currentFiltersProdutos.estoque_baixo,
-        // 'termo' é usado para a rota de busca, 'q' ou 'nome' podem ser usados pela API de listagem geral
-        // A função buscar_produtos no backend espera 'termo'.
-        termo: currentFiltersProdutos.termo || null
-        ,
-        incluir_inativos: currentFiltersProdutos.incluir_inativos
-    };
-
-    // Limpar parâmetros nulos ou vazios para não enviar na URL, exceto booleanos
-    Object.keys(params).forEach(key => {
-        if (params[key] === null || params[key] === '') {
-            delete params[key];
-        }
+  axios
+    .get(API_ROUTES.CATEGORIAS_LISTAR)
+    .then((response) => {
+      select.innerHTML = '<option value="">Todas as Categorias</option>';
+      (response.data || []).forEach((cat) => {
+        select.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
+      });
+    })
+    .catch((error) => {
+      console.error(
+        `Erro ao carregar categorias para ${selectId}:`,
+        error.response ? error.response.data : error.message,
+      );
+      select.innerHTML = '<option value="">Erro ao carregar</option>';
+      showNotification("Falha ao carregar categorias.", "danger");
     });
-    
-    // Decide qual endpoint usar: busca específica ou listagem geral/filtrada
-    // A rota /produtos (PRODUTOS_LISTAR) no backend já aceita 'termo' através da função buscar_produtos.
-    // Portanto, podemos usar sempre PRODUTOS_LISTAR e a lógica de busca está no backend.
-    const url = API_ROUTES.PRODUTOS_LISTAR; // Rota: /produtos (que pode usar buscar_produtos internamente)
-
-    axios.get(url, { params })
-        .then(response => {
-            const data = response.data; // Espera-se { produtos: [], total: X, pages: Y, page: Z, per_page: W }
-            renderizarTabelaProdutos(data.produtos || []);
-            totalPagesProdutos = data.pages || 1;
-            currentPageProdutos = data.page || 1;
-            renderizarPaginacaoProdutos();
-            document.getElementById('total-produtos').textContent = `Total: ${data.total || 0} produtos`;
-        })
-        .catch(error => {
-            console.error('Erro ao carregar produtos:', error.response ? error.response.data : error.message);
-            showNotification('Falha ao carregar lista de produtos.', 'danger');
-            document.getElementById('produtos-tabela').innerHTML = `<tr><td colspan="10" class="text-center text-danger">Erro ao carregar produtos. Tente novamente.</td></tr>`;
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
 }
 
-/**
- * Renderiza a tabela de produtos.
- * @param {Array} produtos - Lista de produtos a serem exibidos.
- */
-function renderizarTabelaProdutos(produtos) {
-    const tabelaBody = document.getElementById('produtos-tabela');
-    if (!tabelaBody) return;
+function carregarOpcoesFornecedoresParaFiltro(selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) {
+    console.warn(
+      `Elemento select '${selectId}' para filtro de fornecedores não encontrado.`,
+    );
+    return;
+  }
 
-    tabelaBody.innerHTML = ''; // Limpar tabela
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.FORNECEDORES_LISTAR) {
+    console.error(
+      "Erro de Configuração: API_ROUTES.FORNECEDORES_LISTAR não definido em api-routes.js.",
+    );
+    select.innerHTML = '<option value="">Erro Config API</option>';
+    showNotification(
+      "Erro ao carregar opções de fornecedores (Config API).",
+      "danger",
+    );
+    return;
+  }
 
-    const colspanVal = canManageProduto ? 10 : 9;
+  axios
+    .get(API_ROUTES.FORNECEDORES_LISTAR, {
+      params: { ativo: "true", per_page: 200 },
+    })
+    .then((response) => {
+      select.innerHTML = '<option value="">Todos os Fornecedores</option>';
+      const fornecedores = response.data.fornecedores || [];
+      fornecedores.forEach((forn) => {
+        select.innerHTML += `<option value="${forn.id}">${forn.nome}</option>`;
+      });
+    })
+    .catch((error) => {
+      console.error(
+        `Erro ao carregar fornecedores para ${selectId}:`,
+        error.response ? error.response.data : error.message,
+      );
+      select.innerHTML = '<option value="">Erro ao carregar</option>';
+      showNotification("Falha ao carregar fornecedores.", "danger");
+    });
+}
 
-    if (produtos.length === 0) {
-        tabelaBody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
-        return;
+function carregarProdutos() {
+  if (
+    typeof API_ROUTES === "undefined" ||
+    (!API_ROUTES.PRODUTOS_LISTAR && !API_ROUTES.PRODUTOS_BUSCA)
+  ) {
+    console.error(
+      "Erro de Configuração: Rotas de produtos (PRODUTOS_LISTAR/PRODUTOS_BUSCA) não definidas em api-routes.js.",
+    );
+    showNotification("Erro ao carregar produtos (Config API).", "danger");
+    document.getElementById("produtos-tabela").innerHTML =
+      `<tr><td colspan="10" class="text-center text-danger">Erro de Configuração API.</td></tr>`;
+    toggleLoading(false);
+    return;
+  }
+  toggleLoading(true);
+
+  const params = {
+    page: currentPageProdutos,
+    per_page: 15,
+    categoria_id: currentFiltersProdutos.categoria_id || null,
+    fornecedor_id: currentFiltersProdutos.fornecedor_id || null,
+    estoque_baixo: currentFiltersProdutos.estoque_baixo,
+
+    termo: currentFiltersProdutos.termo || null,
+    incluir_inativos: currentFiltersProdutos.incluir_inativos,
+  };
+
+  Object.keys(params).forEach((key) => {
+    if (params[key] === null || params[key] === "") {
+      delete params[key];
     }
+  });
 
-    produtos.forEach(produto => {
-        const precoCompraFmt = produto.preco_compra ? `R$ ${parseFloat(produto.preco_compra).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
-        const precoVendaFmt = produto.preco ? `R$ ${parseFloat(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
-        const estoqueClasse = produto.estoque <= produto.estoque_minimo ? 'text-danger fw-bold' : '';
-        const ativo = produto.ativo === undefined ? true : !!produto.ativo;
-        const statusBadgeClass = ativo ? 'success' : 'danger';
-        const statusBadgeText = ativo ? 'Ativo' : 'Inativo';
-        const nomeProdutoEscapado = String(produto.nome || '').replace(/'/g, "\\'");
+  const url = API_ROUTES.PRODUTOS_LISTAR;
 
-        const actionEdit = canManageProduto
-            ? `<li>
+  axios
+    .get(url, { params })
+    .then((response) => {
+      const data = response.data;
+      renderizarTabelaProdutos(data.produtos || []);
+      totalPagesProdutos = data.pages || 1;
+      currentPageProdutos = data.page || 1;
+      renderizarPaginacaoProdutos();
+      document.getElementById("total-produtos").textContent =
+        `Total: ${data.total || 0} produtos`;
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao carregar produtos:",
+        error.response ? error.response.data : error.message,
+      );
+      showNotification("Falha ao carregar lista de produtos.", "danger");
+      document.getElementById("produtos-tabela").innerHTML =
+        `<tr><td colspan="10" class="text-center text-danger">Erro ao carregar produtos. Tente novamente.</td></tr>`;
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
+}
+
+function renderizarTabelaProdutos(produtos) {
+  const tabelaBody = document.getElementById("produtos-tabela");
+  if (!tabelaBody) return;
+
+  tabelaBody.innerHTML = "";
+
+  const colspanVal = canManageProduto ? 10 : 9;
+
+  if (produtos.length === 0) {
+    tabelaBody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center">Nenhum produto encontrado com os filtros atuais.</td></tr>`;
+    return;
+  }
+
+  produtos.forEach((produto) => {
+    const precoCompraFmt = produto.preco_compra
+      ? `R$ ${parseFloat(produto.preco_compra).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : "-";
+    const precoVendaFmt = produto.preco
+      ? `R$ ${parseFloat(produto.preco).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : "-";
+    const estoqueClasse =
+      produto.estoque <= produto.estoque_minimo ? "text-danger fw-bold" : "";
+    const ativo = produto.ativo === undefined ? true : !!produto.ativo;
+    const statusBadgeClass = ativo ? "success" : "danger";
+    const statusBadgeText = ativo ? "Ativo" : "Inativo";
+    const nomeProdutoEscapado = String(produto.nome || "").replace(/'/g, "\\'");
+
+    const actionEdit = canManageProduto
+      ? `<li>
                     <button class="dropdown-item" type="button" onclick="abrirModalEditarProduto(${produto.id})">
                         <i class="fas fa-edit me-2"></i>Editar
                     </button>
                </li>`
-            : '';
+      : "";
 
-        const toggleStatusIcon = ativo ? 'fa-toggle-on text-success' : 'fa-toggle-off text-secondary';
-        const toggleStatusTitle = ativo ? 'Desativar' : 'Ativar';
-        const actionToggleStatus = canManageProduto
-            ? `<li>
+    const toggleStatusIcon = ativo
+      ? "fa-toggle-on text-success"
+      : "fa-toggle-off text-secondary";
+    const toggleStatusTitle = ativo ? "Desativar" : "Ativar";
+    const actionToggleStatus = canManageProduto
+      ? `<li>
                     <button class="dropdown-item" type="button" onclick="alternarStatusProduto(${produto.id})">
                         <i class="fas ${toggleStatusIcon} me-2"></i>${toggleStatusTitle}
                     </button>
                </li>`
-            : '';
+      : "";
 
-        const actionDivider = (actionEdit && actionToggleStatus)
-            ? '<li><hr class="dropdown-divider"></li>'
-            : '';
+    const actionDivider =
+      actionEdit && actionToggleStatus
+        ? '<li><hr class="dropdown-divider"></li>'
+        : "";
 
-        const actionsTd = canManageProduto ? `
+    const actionsTd = canManageProduto
+      ? `
                 <td class="text-end">
                     <div class="dropdown d-inline-block">
                         <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
@@ -246,14 +261,15 @@ function renderizarTabelaProdutos(produtos) {
                             ${actionToggleStatus}
                         </ul>
                     </div>
-                </td>` : '';
+                </td>`
+      : "";
 
-        const row = `
+    const row = `
             <tr>
-                <td>${produto.codigo || '-'}</td>
+                <td>${produto.codigo || "-"}</td>
                 <td>${produto.nome}</td>
-                <td>${produto.categoria_nome || produto.categoria?.nome || 'N/A'}</td>
-                <td>${produto.fornecedor_nome || produto.fornecedor?.nome || 'N/A'}</td>
+                <td>${produto.categoria_nome || produto.categoria?.nome || "N/A"}</td>
+                <td>${produto.fornecedor_nome || produto.fornecedor?.nome || "N/A"}</td>
                 <td>${precoCompraFmt}</td>
                 <td>${precoVendaFmt}</td>
                 <td class="${estoqueClasse}">${produto.estoque}</td>
@@ -262,307 +278,366 @@ function renderizarTabelaProdutos(produtos) {
                 ${actionsTd}
             </tr>
         `;
-        tabelaBody.innerHTML += row;
-    });
-    inicializarDropdownsTabela();
+    tabelaBody.innerHTML += row;
+  });
+  inicializarDropdownsTabela();
 }
 
 /**
  * Renderiza os controles de paginação para a lista de produtos.
  */
 function renderizarPaginacaoProdutos() {
-    const paginacaoContainer = document.getElementById('paginacao-produtos');
-    if (!paginacaoContainer) return;
+  const paginacaoContainer = document.getElementById("paginacao-produtos");
+  if (!paginacaoContainer) return;
 
-    paginacaoContainer.innerHTML = '';
-    if (totalPagesProdutos <= 1) return;
+  paginacaoContainer.innerHTML = "";
+  if (totalPagesProdutos <= 1) return;
 
-    const ul = document.createElement('ul');
-    ul.className = 'pagination pagination-sm mb-0';
+  const ul = document.createElement("ul");
+  ul.className = "pagination pagination-sm mb-0";
 
-    // Botão Anterior
-    ul.appendChild(criarItemPaginacao('&laquo;', currentPageProdutos > 1 ? currentPageProdutos - 1 : null, currentPageProdutos === 1));
+  // Botão Anterior
+  ul.appendChild(
+    criarItemPaginacao(
+      "&laquo;",
+      currentPageProdutos > 1 ? currentPageProdutos - 1 : null,
+      currentPageProdutos === 1,
+    ),
+  );
 
-    // Números das Páginas (lógica simplificada para mostrar algumas páginas ao redor da atual)
-    let inicio = Math.max(1, currentPageProdutos - 2);
-    let fim = Math.min(totalPagesProdutos, currentPageProdutos + 2);
+  // Números das Páginas (lógica simplificada para mostrar algumas páginas ao redor da atual)
+  let inicio = Math.max(1, currentPageProdutos - 2);
+  let fim = Math.min(totalPagesProdutos, currentPageProdutos + 2);
 
-    if (totalPagesProdutos > 5 && currentPageProdutos > 3) { // Adiciona "1 ..." se necessário
-        ul.appendChild(criarItemPaginacao('1', 1));
-        if (currentPageProdutos > 4) {
-             ul.appendChild(criarItemPaginacao('...', null, true)); // '...' desabilitado
-        }
+  if (totalPagesProdutos > 5 && currentPageProdutos > 3) {
+    // Adiciona "1 ..." se necessário
+    ul.appendChild(criarItemPaginacao("1", 1));
+    if (currentPageProdutos > 4) {
+      ul.appendChild(criarItemPaginacao("...", null, true)); // '...' desabilitado
     }
-    
-    for (let i = inicio; i <= fim; i++) {
-        ul.appendChild(criarItemPaginacao(i, i, false, i === currentPageProdutos));
-    }
+  }
 
-    if (totalPagesProdutos > 5 && currentPageProdutos < totalPagesProdutos - 2) { // Adiciona "... UltimaPagina" se necessário
-        if (currentPageProdutos < totalPagesProdutos - 3) {
-            ul.appendChild(criarItemPaginacao('...', null, true));
-        }
-        ul.appendChild(criarItemPaginacao(totalPagesProdutos, totalPagesProdutos));
-    }
-    
-    // Botão Próximo
-    ul.appendChild(criarItemPaginacao('&raquo;', currentPageProdutos < totalPagesProdutos ? currentPageProdutos + 1 : null, currentPageProdutos === totalPagesProdutos));
+  for (let i = inicio; i <= fim; i++) {
+    ul.appendChild(criarItemPaginacao(i, i, false, i === currentPageProdutos));
+  }
 
-    paginacaoContainer.appendChild(ul);
+  if (totalPagesProdutos > 5 && currentPageProdutos < totalPagesProdutos - 2) {
+    // Adiciona "... UltimaPagina" se necessário
+    if (currentPageProdutos < totalPagesProdutos - 3) {
+      ul.appendChild(criarItemPaginacao("...", null, true));
+    }
+    ul.appendChild(criarItemPaginacao(totalPagesProdutos, totalPagesProdutos));
+  }
+
+  // Botão Próximo
+  ul.appendChild(
+    criarItemPaginacao(
+      "&raquo;",
+      currentPageProdutos < totalPagesProdutos ? currentPageProdutos + 1 : null,
+      currentPageProdutos === totalPagesProdutos,
+    ),
+  );
+
+  paginacaoContainer.appendChild(ul);
 }
 
 /**
  * Cria um item de paginação (li > a).
  */
-function criarItemPaginacao(texto, paginaAlvo, desabilitado = false, ativo = false) {
-    const li = document.createElement('li');
-    li.className = `page-item ${desabilitado ? 'disabled' : ''} ${ativo ? 'active' : ''}`;
-    const a = document.createElement('a');
-    a.className = 'page-link';
-    a.href = '#';
-    a.innerHTML = texto;
-    if (!desabilitado && paginaAlvo !== null) {
-        a.addEventListener('click', (e) => {
-            e.preventDefault();
-            currentPageProdutos = paginaAlvo;
-            carregarProdutos();
-        });
-    }
-    li.appendChild(a);
-    return li;
+function criarItemPaginacao(
+  texto,
+  paginaAlvo,
+  desabilitado = false,
+  ativo = false,
+) {
+  const li = document.createElement("li");
+  li.className = `page-item ${desabilitado ? "disabled" : ""} ${ativo ? "active" : ""}`;
+  const a = document.createElement("a");
+  a.className = "page-link";
+  a.href = "#";
+  a.innerHTML = texto;
+  if (!desabilitado && paginaAlvo !== null) {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      currentPageProdutos = paginaAlvo;
+      carregarProdutos();
+    });
+  }
+  li.appendChild(a);
+  return li;
 }
-
 
 /**
  * Configura os eventos dos filtros (selects e checkbox) da página de produtos.
  */
 function configurarFiltrosProdutos() {
-    const filtroCategoriaEl = document.getElementById('filtro-categoria');
-    const filtroFornecedorEl = document.getElementById('filtro-fornecedor');
-    const filtroEstoqueBaixoEl = document.getElementById('filtro-estoque-baixo');
-    const filtroInativosEl = document.getElementById('filtro-incluir-inativos');
+  const filtroCategoriaEl = document.getElementById("filtro-categoria");
+  const filtroFornecedorEl = document.getElementById("filtro-fornecedor");
+  const filtroEstoqueBaixoEl = document.getElementById("filtro-estoque-baixo");
+  const filtroInativosEl = document.getElementById("filtro-incluir-inativos");
 
-    if (filtroCategoriaEl) {
-        filtroCategoriaEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.categoria_id = e.target.value;
-            currentPageProdutos = 1;
-            carregarProdutos();
-        });
-    }
-    if (filtroFornecedorEl) {
-        filtroFornecedorEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.fornecedor_id = e.target.value;
-            currentPageProdutos = 1;
-            carregarProdutos();
-        });
-    }
-    if (filtroEstoqueBaixoEl) {
-        filtroEstoqueBaixoEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.estoque_baixo = e.target.value === 'true';
-            currentPageProdutos = 1;
-            carregarProdutos();
-        });
-    }
+  if (filtroCategoriaEl) {
+    filtroCategoriaEl.addEventListener("change", (e) => {
+      currentFiltersProdutos.categoria_id = e.target.value;
+      currentPageProdutos = 1;
+      carregarProdutos();
+    });
+  }
+  if (filtroFornecedorEl) {
+    filtroFornecedorEl.addEventListener("change", (e) => {
+      currentFiltersProdutos.fornecedor_id = e.target.value;
+      currentPageProdutos = 1;
+      carregarProdutos();
+    });
+  }
+  if (filtroEstoqueBaixoEl) {
+    filtroEstoqueBaixoEl.addEventListener("change", (e) => {
+      currentFiltersProdutos.estoque_baixo = e.target.value === "true";
+      currentPageProdutos = 1;
+      carregarProdutos();
+    });
+  }
 
-    if (filtroInativosEl) {
-        filtroInativosEl.addEventListener('change', (e) => {
-            currentFiltersProdutos.incluir_inativos = e.target.value === 'true';
-            currentPageProdutos = 1;
-            carregarProdutos();
-        });
-    }
+  if (filtroInativosEl) {
+    filtroInativosEl.addEventListener("change", (e) => {
+      currentFiltersProdutos.incluir_inativos = e.target.value === "true";
+      currentPageProdutos = 1;
+      carregarProdutos();
+    });
+  }
 }
 
 /**
  * Configura a funcionalidade de busca de produtos com debounce.
  */
 function configurarBuscaProdutos() {
-    const buscaInputEl = document.getElementById('busca-produto'); // ID da barra de busca principal
-    let debounceTimeout;
+  const buscaInputEl = document.getElementById("busca-produto"); // ID da barra de busca principal
+  let debounceTimeout;
 
-    if (buscaInputEl) {
-        buscaInputEl.addEventListener('input', (e) => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                currentFiltersProdutos.termo = e.target.value.trim();
-                currentPageProdutos = 1;
-                carregarProdutos();
-            }, 500); // Atraso de 500ms
-        });
-    }
+  if (buscaInputEl) {
+    buscaInputEl.addEventListener("input", (e) => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        currentFiltersProdutos.termo = e.target.value.trim();
+        currentPageProdutos = 1;
+        carregarProdutos();
+      }, 500); // Atraso de 500ms
+    });
+  }
 }
 
 /**
  * Configura os eventos e a lógica dos modais (Adicionar, Editar, Excluir).
  */
 function configurarModaisProdutos() {
-    // --- Modal Adicionar Produto ---
-    const modalAdicionarEl = document.getElementById('modalAdicionarProduto');
-    const formAdicionarEl = document.getElementById('formAdicionarProduto');
-    if (modalAdicionarEl && formAdicionarEl) {
-        modalAdicionarEl.addEventListener('show.bs.modal', () => {
-            // Carregar opções para selects DENTRO do modal
-            carregarOpcoesCategoriasParaModal('categoriaProduto', true); // true para modal
-            carregarOpcoesFornecedoresParaModal('fornecedorProduto', true); // true para modal
-            formAdicionarEl.reset();
-        });
+  // --- Modal Adicionar Produto ---
+  const modalAdicionarEl = document.getElementById("modalAdicionarProduto");
+  const formAdicionarEl = document.getElementById("formAdicionarProduto");
+  if (modalAdicionarEl && formAdicionarEl) {
+    modalAdicionarEl.addEventListener("show.bs.modal", () => {
+      // Carregar opções para selects DENTRO do modal
+      carregarOpcoesCategoriasParaModal("categoriaProduto", true); // true para modal
+      carregarOpcoesFornecedoresParaModal("fornecedorProduto", true); // true para modal
+      formAdicionarEl.reset();
+    });
 
-        formAdicionarEl.addEventListener('submit', (e) => {
-            e.preventDefault();
-            submeterFormularioAdicionarProduto();
-        });
-    }
+    formAdicionarEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submeterFormularioAdicionarProduto();
+    });
+  }
 
-    // --- Modal Editar Produto ---
-    const modalEditarEl = document.getElementById('modalEditarProduto');
-    const formEditarEl = document.getElementById('formEditarProduto');
-    if (modalEditarEl && formEditarEl) {
-        modalEditarEl.addEventListener('show.bs.modal', () => {
-            // As opções serão carregadas e o valor selecionado quando abrirModalEditarProduto for chamado
-            carregarOpcoesCategoriasParaModal('categoriaProdutoEditar', true);
-            carregarOpcoesFornecedoresParaModal('fornecedorProdutoEditar', true);
-        });
-        
-        formEditarEl.addEventListener('submit', (e) => {
-            e.preventDefault();
-            submeterFormularioEditarProduto();
-        });
-    }
+  // --- Modal Editar Produto ---
+  const modalEditarEl = document.getElementById("modalEditarProduto");
+  const formEditarEl = document.getElementById("formEditarProduto");
+  if (modalEditarEl && formEditarEl) {
+    modalEditarEl.addEventListener("show.bs.modal", () => {
+      // As opções serão carregadas e o valor selecionado quando abrirModalEditarProduto for chamado
+      carregarOpcoesCategoriasParaModal("categoriaProdutoEditar", true);
+      carregarOpcoesFornecedoresParaModal("fornecedorProdutoEditar", true);
+    });
 
-    // --- Modal Confirmar Exclusão ---
-    const btnConfirmarExclusaoEl = document.getElementById('btnConfirmarExclusao');
-    if (btnConfirmarExclusaoEl) {
-        btnConfirmarExclusaoEl.addEventListener('click', () => {
-            const produtoId = btnConfirmarExclusaoEl.dataset.produtoId;
-            if (produtoId) {
-                executarExclusaoProduto(produtoId);
-            }
-        });
-    }
+    formEditarEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      submeterFormularioEditarProduto();
+    });
+  }
+
+  // --- Modal Confirmar Exclusão ---
+  const btnConfirmarExclusaoEl = document.getElementById(
+    "btnConfirmarExclusao",
+  );
+  if (btnConfirmarExclusaoEl) {
+    btnConfirmarExclusaoEl.addEventListener("click", () => {
+      const produtoId = btnConfirmarExclusaoEl.dataset.produtoId;
+      if (produtoId) {
+        executarExclusaoProduto(produtoId);
+      }
+    });
+  }
 }
 
 /**
  * Carrega opções de categorias para selects dentro de modais.
  */
 function carregarOpcoesCategoriasParaModal(selectId, isModalContext = false) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
+  const select = document.getElementById(selectId);
+  if (!select) return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.CATEGORIAS_LISTAR) {
-        console.error('Erro Config: API_ROUTES.CATEGORIAS_LISTAR não definido (modal).');
-        select.innerHTML = '<option value="">Erro API</option>';
-        return;
-    }
-    axios.get(API_ROUTES.CATEGORIAS_LISTAR)
-        .then(response => {
-            select.innerHTML = '<option value="">Selecione...</option>';
-            (response.data || []).forEach(cat => {
-                select.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
-            });
-            // Se for um modal de edição, um evento pode ser disparado para preencher o valor
-            if (isModalContext && select.dataset.selectedValue) {
-                select.value = select.dataset.selectedValue;
-            }
-        })
-        .catch(error => console.error(`Erro ao carregar categorias para modal ${selectId}:`, error));
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.CATEGORIAS_LISTAR) {
+    console.error(
+      "Erro Config: API_ROUTES.CATEGORIAS_LISTAR não definido (modal).",
+    );
+    select.innerHTML = '<option value="">Erro API</option>';
+    return;
+  }
+  axios
+    .get(API_ROUTES.CATEGORIAS_LISTAR)
+    .then((response) => {
+      select.innerHTML = '<option value="">Selecione...</option>';
+      (response.data || []).forEach((cat) => {
+        select.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
+      });
+      // Se for um modal de edição, um evento pode ser disparado para preencher o valor
+      if (isModalContext && select.dataset.selectedValue) {
+        select.value = select.dataset.selectedValue;
+      }
+    })
+    .catch((error) =>
+      console.error(
+        `Erro ao carregar categorias para modal ${selectId}:`,
+        error,
+      ),
+    );
 }
 
 /**
  * Carrega opções de fornecedores para selects dentro de modais.
  */
 function carregarOpcoesFornecedoresParaModal(selectId, isModalContext = false) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
+  const select = document.getElementById(selectId);
+  if (!select) return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.FORNECEDORES_LISTAR) {
-        console.error('Erro Config: API_ROUTES.FORNECEDORES_LISTAR não definido (modal).');
-        select.innerHTML = '<option value="">Erro API</option>';
-        return;
-    }
-    axios.get(API_ROUTES.FORNECEDORES_LISTAR, { params: { ativo: 'true', per_page: 200 }})
-        .then(response => {
-            select.innerHTML = '<option value="">Selecione...</option>';
-            const fornecedores = response.data.fornecedores || [];
-            fornecedores.forEach(forn => {
-                select.innerHTML += `<option value="${forn.id}">${forn.nome}</option>`;
-            });
-             if (isModalContext && select.dataset.selectedValue) {
-                select.value = select.dataset.selectedValue;
-            }
-        })
-        .catch(error => console.error(`Erro ao carregar fornecedores para modal ${selectId}:`, error));
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.FORNECEDORES_LISTAR) {
+    console.error(
+      "Erro Config: API_ROUTES.FORNECEDORES_LISTAR não definido (modal).",
+    );
+    select.innerHTML = '<option value="">Erro API</option>';
+    return;
+  }
+  axios
+    .get(API_ROUTES.FORNECEDORES_LISTAR, {
+      params: { ativo: "true", per_page: 200 },
+    })
+    .then((response) => {
+      select.innerHTML = '<option value="">Selecione...</option>';
+      const fornecedores = response.data.fornecedores || [];
+      fornecedores.forEach((forn) => {
+        select.innerHTML += `<option value="${forn.id}">${forn.nome}</option>`;
+      });
+      if (isModalContext && select.dataset.selectedValue) {
+        select.value = select.dataset.selectedValue;
+      }
+    })
+    .catch((error) =>
+      console.error(
+        `Erro ao carregar fornecedores para modal ${selectId}:`,
+        error,
+      ),
+    );
 }
-
 
 /**
  * Submete o formulário de adicionar novo produto.
  */
 function submeterFormularioAdicionarProduto() {
-    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem adicionar produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canManageProduto,
+      "Apenas admin e gerente podem adicionar produtos.",
+    )
+  )
+    return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTOS_LISTAR) {
-        showNotification('Erro de Configuração API ao adicionar produto.', 'danger');
-        return;
-    }
-    toggleLoading(true);
-    const dadosProduto = {
-        codigo: document.getElementById('codigoProduto').value.trim(), // ID do input no modal
-        nome: document.getElementById('nomeProduto').value.trim(),
-        categoria_id: document.getElementById('categoriaProduto').value,
-        fornecedor_id: document.getElementById('fornecedorProduto').value || null,
-        preco_compra: parseFloat(document.getElementById('precoCompra').value) || null,
-        preco: parseFloat(document.getElementById('precoVenda').value), // 'preco' é o preço de venda
-        estoque: parseInt(document.getElementById('estoqueProduto').value) || 0,
-        estoque_minimo: parseInt(document.getElementById('estoqueMinimo').value) || 0,
-        descricao: document.getElementById('descricaoProduto').value.trim() || ''
-    };
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTOS_LISTAR) {
+    showNotification(
+      "Erro de Configuração API ao adicionar produto.",
+      "danger",
+    );
+    return;
+  }
+  toggleLoading(true);
+  const dadosProduto = {
+    codigo: document.getElementById("codigoProduto").value.trim(), // ID do input no modal
+    nome: document.getElementById("nomeProduto").value.trim(),
+    categoria_id: document.getElementById("categoriaProduto").value,
+    fornecedor_id: document.getElementById("fornecedorProduto").value || null,
+    preco_compra:
+      parseFloat(document.getElementById("precoCompra").value) || null,
+    preco: parseFloat(document.getElementById("precoVenda").value), // 'preco' é o preço de venda
+    estoque: parseInt(document.getElementById("estoqueProduto").value) || 0,
+    estoque_minimo:
+      parseInt(document.getElementById("estoqueMinimo").value) || 0,
+    descricao: document.getElementById("descricaoProduto").value.trim() || "",
+  };
 
-    if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco) {
-        showNotification('Nome, Categoria e Preço de Venda são obrigatórios.', 'warning');
-        toggleLoading(false);
-        return;
-    }
+  if (!dadosProduto.nome || !dadosProduto.categoria_id || !dadosProduto.preco) {
+    showNotification(
+      "Nome, Categoria e Preço de Venda são obrigatórios.",
+      "warning",
+    );
+    toggleLoading(false);
+    return;
+  }
 
-    if (dadosProduto.preco_compra !== null && dadosProduto.preco_compra <= 0) {
-        showNotification('O preço de compra deve ser maior que zero.', 'warning');
-        toggleLoading(false);
-        return;
-    }
-    if (dadosProduto.preco <= 0) {
-        showNotification('O preço de venda deve ser maior que zero.', 'warning');
-        toggleLoading(false);
-        return;
-    }
-    if (dadosProduto.estoque < 0) {
-        showNotification('O estoque não pode ser negativo.', 'warning');
-        toggleLoading(false);
-        return;
-    }
-    if (dadosProduto.estoque_minimo < 0) {
-        showNotification('O estoque mínimo não pode ser negativo.', 'warning');
-        toggleLoading(false);
-        return;
-    }
+  if (dadosProduto.preco_compra !== null && dadosProduto.preco_compra <= 0) {
+    showNotification("O preço de compra deve ser maior que zero.", "warning");
+    toggleLoading(false);
+    return;
+  }
+  if (dadosProduto.preco <= 0) {
+    showNotification("O preço de venda deve ser maior que zero.", "warning");
+    toggleLoading(false);
+    return;
+  }
+  if (dadosProduto.estoque < 0) {
+    showNotification("O estoque não pode ser negativo.", "warning");
+    toggleLoading(false);
+    return;
+  }
+  if (dadosProduto.estoque_minimo < 0) {
+    showNotification("O estoque mínimo não pode ser negativo.", "warning");
+    toggleLoading(false);
+    return;
+  }
 
-    // Adicionar validação de código único aqui ou deixar para o backend
-    // if (!dadosProduto.codigo) { /* ... */ }
+  // Adicionar validação de código único aqui ou deixar para o backend
+  // if (!dadosProduto.codigo) { /* ... */ }
 
-
-    axios.post(API_ROUTES.PRODUTOS_LISTAR, dadosProduto) // POST para /produtos
-        .then(response => {
-            showNotification(response.data.message || 'Produto adicionado com sucesso!', 'success');
-            const modalEl = document.getElementById('modalAdicionarProduto');
-            if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
-            carregarProdutos(); // Recarregar a lista
-        })
-        .catch(error => {
-            console.error('Erro ao adicionar produto:', error.response ? error.response.data : error.message);
-            const msg = error.response?.data?.error || 'Erro desconhecido ao adicionar produto.';
-            showNotification(msg, 'danger');
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
+  axios
+    .post(API_ROUTES.PRODUTOS_LISTAR, dadosProduto) // POST para /produtos
+    .then((response) => {
+      showNotification(
+        response.data.message || "Produto adicionado com sucesso!",
+        "success",
+      );
+      const modalEl = document.getElementById("modalAdicionarProduto");
+      if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
+      carregarProdutos(); // Recarregar a lista
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao adicionar produto:",
+        error.response ? error.response.data : error.message,
+      );
+      const msg =
+        error.response?.data?.error ||
+        "Erro desconhecido ao adicionar produto.";
+      showNotification(msg, "danger");
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
 }
 
 /**
@@ -570,124 +645,175 @@ function submeterFormularioAdicionarProduto() {
  * @param {number} produtoId - ID do produto a ser editado.
  */
 function abrirModalEditarProduto(produtoId) {
-    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem editar produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canManageProduto,
+      "Apenas admin e gerente podem editar produtos.",
+    )
+  )
+    return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) {
-        showNotification('Erro de Configuração API ao editar produto.', 'danger');
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTO_DETALHES) {
+    showNotification("Erro de Configuração API ao editar produto.", "danger");
+    return;
+  }
+  toggleLoading(true);
+  axios
+    .get(API_ROUTES.PRODUTO_DETALHES(produtoId)) // GET /produtos/{id}
+    .then((response) => {
+      const produto = response.data;
+      if (!produto) {
+        showNotification("Produto não encontrado para edição.", "warning");
         return;
-    }
-    toggleLoading(true);
-    axios.get(API_ROUTES.PRODUTO_DETALHES(produtoId)) // GET /produtos/{id}
-        .then(response => {
-            const produto = response.data;
-            if (!produto) {
-                showNotification('Produto não encontrado para edição.', 'warning');
-                return;
-            }
+      }
 
-            document.getElementById('idProdutoEditar').value = produto.id;
-            document.getElementById('codigoProdutoEditar').value = produto.codigo || '';
-            document.getElementById('nomeProdutoEditar').value = produto.nome || '';
-            
-            // Para selects, armazena o valor para ser setado após o carregamento das opções
-            const catSelect = document.getElementById('categoriaProdutoEditar');
-            catSelect.dataset.selectedValue = produto.categoria_id || produto.categoria?.id || '';
-            // Força o recarregamento das opções e seleciona o valor
-            carregarOpcoesCategoriasParaModal('categoriaProdutoEditar', true);
+      document.getElementById("idProdutoEditar").value = produto.id;
+      document.getElementById("codigoProdutoEditar").value =
+        produto.codigo || "";
+      document.getElementById("nomeProdutoEditar").value = produto.nome || "";
 
+      // Para selects, armazena o valor para ser setado após o carregamento das opções
+      const catSelect = document.getElementById("categoriaProdutoEditar");
+      catSelect.dataset.selectedValue =
+        produto.categoria_id || produto.categoria?.id || "";
+      // Força o recarregamento das opções e seleciona o valor
+      carregarOpcoesCategoriasParaModal("categoriaProdutoEditar", true);
 
-            const fornSelect = document.getElementById('fornecedorProdutoEditar');
-            fornSelect.dataset.selectedValue = produto.fornecedor_id || produto.fornecedor?.id || '';
-            carregarOpcoesFornecedoresParaModal('fornecedorProdutoEditar', true);
+      const fornSelect = document.getElementById("fornecedorProdutoEditar");
+      fornSelect.dataset.selectedValue =
+        produto.fornecedor_id || produto.fornecedor?.id || "";
+      carregarOpcoesFornecedoresParaModal("fornecedorProdutoEditar", true);
 
+      document.getElementById("precoCompraEditar").value =
+        produto.preco_compra || "";
+      document.getElementById("precoVendaEditar").value = produto.preco || ""; // 'preco' é o preço de venda
+      document.getElementById("estoqueProdutoEditar").value =
+        produto.estoque !== undefined ? produto.estoque : "";
+      document.getElementById("estoqueMinimoEditar").value =
+        produto.estoque_minimo !== undefined ? produto.estoque_minimo : "";
+      document.getElementById("descricaoProdutoEditar").value =
+        produto.descricao || "";
 
-            document.getElementById('precoCompraEditar').value = produto.preco_compra || '';
-            document.getElementById('precoVendaEditar').value = produto.preco || ''; // 'preco' é o preço de venda
-            document.getElementById('estoqueProdutoEditar').value = produto.estoque !== undefined ? produto.estoque : '';
-            document.getElementById('estoqueMinimoEditar').value = produto.estoque_minimo !== undefined ? produto.estoque_minimo : '';
-            document.getElementById('descricaoProdutoEditar').value = produto.descricao || '';
-
-            const modalEl = document.getElementById('modalEditarProduto');
-            if (modalEl) new bootstrap.Modal(modalEl).show();
-        })
-        .catch(error => {
-            console.error('Erro ao carregar dados do produto para edição:', error.response ? error.response.data : error.message);
-            showNotification('Falha ao carregar dados do produto para edição.', 'danger');
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
+      const modalEl = document.getElementById("modalEditarProduto");
+      if (modalEl) new bootstrap.Modal(modalEl).show();
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao carregar dados do produto para edição:",
+        error.response ? error.response.data : error.message,
+      );
+      showNotification(
+        "Falha ao carregar dados do produto para edição.",
+        "danger",
+      );
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
 }
 
 /**
  * Submete o formulário de edição do produto.
  */
 function submeterFormularioEditarProduto() {
-    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem atualizar produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canManageProduto,
+      "Apenas admin e gerente podem atualizar produtos.",
+    )
+  )
+    return;
 
-    const produtoId = document.getElementById('idProdutoEditar').value;
-    if (!produtoId) {
-        showNotification('ID do produto para edição não encontrado.', 'danger');
-        return;
-    }
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) { // Rota para PUT é a mesma do GET/DELETE por ID
-        showNotification('Erro de Configuração API ao salvar alterações.', 'danger');
-        return;
-    }
+  const produtoId = document.getElementById("idProdutoEditar").value;
+  if (!produtoId) {
+    showNotification("ID do produto para edição não encontrado.", "danger");
+    return;
+  }
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTO_DETALHES) {
+    // Rota para PUT é a mesma do GET/DELETE por ID
+    showNotification(
+      "Erro de Configuração API ao salvar alterações.",
+      "danger",
+    );
+    return;
+  }
 
-    toggleLoading(true);
-    const dadosProdutoAtualizado = {
-        codigo: document.getElementById('codigoProdutoEditar').value.trim(),
-        nome: document.getElementById('nomeProdutoEditar').value.trim(),
-        categoria_id: document.getElementById('categoriaProdutoEditar').value,
-        fornecedor_id: document.getElementById('fornecedorProdutoEditar').value || null,
-        preco_compra: parseFloat(document.getElementById('precoCompraEditar').value) || null,
-        preco: parseFloat(document.getElementById('precoVendaEditar').value), // Preço de venda
-        // Estoque não é editado diretamente aqui, mas por movimentação.
-        // A API de PUT /produtos/{id} pode ou não aceitar 'estoque'.
-        // Se aceitar, deve criar um movimento de 'ajuste'.
-        // Por ora, não enviamos 'estoque' para evitar alterações diretas sem rastreio.
-        estoque_minimo: parseInt(document.getElementById('estoqueMinimoEditar').value) || 0,
-        descricao: document.getElementById('descricaoProdutoEditar').value.trim() || ''
-    };
-    
-    if (!dadosProdutoAtualizado.nome || !dadosProdutoAtualizado.categoria_id || !dadosProdutoAtualizado.preco) {
-        showNotification('Nome, Categoria e Preço de Venda são obrigatórios.', 'warning');
-        toggleLoading(false);
-        return;
-    }
+  toggleLoading(true);
+  const dadosProdutoAtualizado = {
+    codigo: document.getElementById("codigoProdutoEditar").value.trim(),
+    nome: document.getElementById("nomeProdutoEditar").value.trim(),
+    categoria_id: document.getElementById("categoriaProdutoEditar").value,
+    fornecedor_id:
+      document.getElementById("fornecedorProdutoEditar").value || null,
+    preco_compra:
+      parseFloat(document.getElementById("precoCompraEditar").value) || null,
+    preco: parseFloat(document.getElementById("precoVendaEditar").value), // Preço de venda
+    // Estoque não é editado diretamente aqui, mas por movimentação.
+    // A API de PUT /produtos/{id} pode ou não aceitar 'estoque'.
+    // Se aceitar, deve criar um movimento de 'ajuste'.
+    // Por ora, não enviamos 'estoque' para evitar alterações diretas sem rastreio.
+    estoque_minimo:
+      parseInt(document.getElementById("estoqueMinimoEditar").value) || 0,
+    descricao:
+      document.getElementById("descricaoProdutoEditar").value.trim() || "",
+  };
 
-    if (dadosProdutoAtualizado.preco_compra !== null && dadosProdutoAtualizado.preco_compra <= 0) {
-        showNotification('O preço de compra deve ser maior que zero.', 'warning');
-        toggleLoading(false);
-        return;
-    }
-    if (dadosProdutoAtualizado.preco <= 0) {
-        showNotification('O preço de venda deve ser maior que zero.', 'warning');
-        toggleLoading(false);
-        return;
-    }
-    if (dadosProdutoAtualizado.estoque_minimo < 0) {
-        showNotification('O estoque mínimo não pode ser negativo.', 'warning');
-        toggleLoading(false);
-        return;
-    }
+  if (
+    !dadosProdutoAtualizado.nome ||
+    !dadosProdutoAtualizado.categoria_id ||
+    !dadosProdutoAtualizado.preco
+  ) {
+    showNotification(
+      "Nome, Categoria e Preço de Venda são obrigatórios.",
+      "warning",
+    );
+    toggleLoading(false);
+    return;
+  }
 
-    axios.put(API_ROUTES.PRODUTO_DETALHES(produtoId), dadosProdutoAtualizado) // PUT /produtos/{id}
-        .then(response => {
-            showNotification(response.data.message || 'Produto atualizado com sucesso!', 'success');
-            const modalEl = document.getElementById('modalEditarProduto');
-            if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
-            carregarProdutos();
-        })
-        .catch(error => {
-            console.error('Erro ao atualizar produto:', error.response ? error.response.data : error.message);
-            const msg = error.response?.data?.error || 'Erro desconhecido ao atualizar produto.';
-            showNotification(msg, 'danger');
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
+  if (
+    dadosProdutoAtualizado.preco_compra !== null &&
+    dadosProdutoAtualizado.preco_compra <= 0
+  ) {
+    showNotification("O preço de compra deve ser maior que zero.", "warning");
+    toggleLoading(false);
+    return;
+  }
+  if (dadosProdutoAtualizado.preco <= 0) {
+    showNotification("O preço de venda deve ser maior que zero.", "warning");
+    toggleLoading(false);
+    return;
+  }
+  if (dadosProdutoAtualizado.estoque_minimo < 0) {
+    showNotification("O estoque mínimo não pode ser negativo.", "warning");
+    toggleLoading(false);
+    return;
+  }
+
+  axios
+    .put(API_ROUTES.PRODUTO_DETALHES(produtoId), dadosProdutoAtualizado) // PUT /produtos/{id}
+    .then((response) => {
+      showNotification(
+        response.data.message || "Produto atualizado com sucesso!",
+        "success",
+      );
+      const modalEl = document.getElementById("modalEditarProduto");
+      if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
+      carregarProdutos();
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao atualizar produto:",
+        error.response ? error.response.data : error.message,
+      );
+      const msg =
+        error.response?.data?.error ||
+        "Erro desconhecido ao atualizar produto.";
+      showNotification(msg, "danger");
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
 }
 
 /**
@@ -696,13 +822,21 @@ function submeterFormularioEditarProduto() {
  * @param {string} nomeProduto - Nome do produto.
  */
 function confirmarExclusaoProdutoModal(produtoId, nomeProduto) {
-    if (!assertProdutoPermission(canDeleteProduto, 'Apenas admin pode excluir produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canDeleteProduto,
+      "Apenas admin pode excluir produtos.",
+    )
+  )
+    return;
 
-    document.getElementById('excluirProdutoNome').textContent = nomeProduto;
-    document.getElementById('btnConfirmarExclusao').dataset.produtoId = produtoId;
+  document.getElementById("excluirProdutoNome").textContent = nomeProduto;
+  document.getElementById("btnConfirmarExclusao").dataset.produtoId = produtoId;
 
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
-    modal.show();
+  const modal = new bootstrap.Modal(
+    document.getElementById("modalConfirmarExclusao"),
+  );
+  modal.show();
 }
 
 /**
@@ -710,82 +844,87 @@ function confirmarExclusaoProdutoModal(produtoId, nomeProduto) {
  * @param {number} produtoId - ID do produto a ser excluído.
  */
 function executarExclusaoProduto(produtoId) {
-    if (!assertProdutoPermission(canDeleteProduto, 'Apenas admin pode excluir produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canDeleteProduto,
+      "Apenas admin pode excluir produtos.",
+    )
+  )
+    return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_DETALHES) {
-        showNotification('Erro de Configuração API ao excluir produto.', 'danger');
-        return;
-    }
-    
-    toggleLoading(true);
-    axios.delete(API_ROUTES.PRODUTO_DETALHES(produtoId))
-        .then(response => {
-            showNotification(response.data.message || 'Produto excluído com sucesso!', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
-            modal.hide();
-            carregarProdutos(); // Recarregar lista
-        })
-        .catch(error => {
-            console.error('Erro ao excluir produto:', error.response ? error.response.data : error.message);
-            const msg = error.response?.data?.error || 'Erro desconhecido ao excluir produto.';
-            showNotification(msg, 'danger');
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
+  if (typeof API_ROUTES === "undefined" || !API_ROUTES.PRODUTO_DETALHES) {
+    showNotification("Erro de Configuração API ao excluir produto.", "danger");
+    return;
+  }
+
+  toggleLoading(true);
+  axios
+    .delete(API_ROUTES.PRODUTO_DETALHES(produtoId))
+    .then((response) => {
+      showNotification(
+        response.data.message || "Produto excluído com sucesso!",
+        "success",
+      );
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("modalConfirmarExclusao"),
+      );
+      modal.hide();
+      carregarProdutos(); // Recarregar lista
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao excluir produto:",
+        error.response ? error.response.data : error.message,
+      );
+      const msg =
+        error.response?.data?.error || "Erro desconhecido ao excluir produto.";
+      showNotification(msg, "danger");
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
 }
 
 function alternarStatusProduto(produtoId) {
-    if (!assertProdutoPermission(canManageProduto, 'Apenas admin e gerente podem alterar status de produtos.')) return;
+  if (
+    !assertProdutoPermission(
+      canManageProduto,
+      "Apenas admin e gerente podem alterar status de produtos.",
+    )
+  )
+    return;
 
-    if (typeof API_ROUTES === 'undefined' || !API_ROUTES.PRODUTO_ALTERNAR_STATUS) {
-        showNotification('Erro de Configuração API ao alterar status do produto.', 'danger');
-        return;
-    }
+  if (
+    typeof API_ROUTES === "undefined" ||
+    !API_ROUTES.PRODUTO_ALTERNAR_STATUS
+  ) {
+    showNotification(
+      "Erro de Configuração API ao alterar status do produto.",
+      "danger",
+    );
+    return;
+  }
 
-    toggleLoading(true);
-    axios.post(API_ROUTES.PRODUTO_ALTERNAR_STATUS(produtoId))
-        .then(response => {
-            showNotification(response.data.message || 'Status do produto alterado com sucesso!', 'success');
-            carregarProdutos();
-        })
-        .catch(error => {
-            console.error('Erro ao alterar status do produto:', error.response ? error.response.data : error.message);
-            const msg = error.response?.data?.error || 'Erro ao alterar status do produto.';
-            showNotification(msg, 'danger');
-        })
-        .finally(() => {
-            toggleLoading(false);
-        });
+  toggleLoading(true);
+  axios
+    .post(API_ROUTES.PRODUTO_ALTERNAR_STATUS(produtoId))
+    .then((response) => {
+      showNotification(
+        response.data.message || "Status do produto alterado com sucesso!",
+        "success",
+      );
+      carregarProdutos();
+    })
+    .catch((error) => {
+      console.error(
+        "Erro ao alterar status do produto:",
+        error.response ? error.response.data : error.message,
+      );
+      const msg =
+        error.response?.data?.error || "Erro ao alterar status do produto.";
+      showNotification(msg, "danger");
+    })
+    .finally(() => {
+      toggleLoading(false);
+    });
 }
-
-// Funções globais showNotification e toggleLoading são esperadas de app.js
-// Se não estiverem lá, descomente e use as implementações abaixo ou importe-as.
-/*
-function toggleLoading(show = true) {
-    const spinner = document.getElementById('loading-spinner'); // Certifique-se que este ID existe
-     if (spinner) {
-        spinner.style.display = show ? 'flex' : 'none';
-    }
-}
-
-function showNotification(message, type = 'success') { // success, danger, warning, info
-    const notificationArea = document.getElementById('notification'); // Certifique-se que este ID existe
-    if (!notificationArea) {
-        console.warn("Elemento de notificação '#notification' não encontrado no DOM.");
-        alert(`${type.toUpperCase()}: ${message}`); // Fallback para alert
-        return;
-    }
-    notificationArea.textContent = message;
-    notificationArea.className = `alert alert-${type} notification-popup`; // Reinicia classes
-    notificationArea.style.display = 'block';
-    notificationArea.style.opacity = 1;
-
-    setTimeout(() => {
-        notificationArea.style.opacity = 0;
-        setTimeout(() => {
-            notificationArea.style.display = 'none';
-        }, 300); // Tempo da transição CSS para 'opacity'
-    }, 3000); // Notificação visível por 3 segundos
-}
-*/

@@ -13,10 +13,8 @@ from datetime import datetime
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Criar Blueprint para autenticação
-auth_bp = Blueprint("auth", __name__)
 
-# Função de decorador para verificar se o usuário está autenticado
+auth_bp = Blueprint("auth", __name__)
 
 
 def login_required(f):
@@ -31,62 +29,7 @@ def login_required(f):
     return decorated_function
 
 
-# Função para verificar nível de acesso
-
-
 def acesso_requerido(niveis_permitidos):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if "user_id" not in session:
-                if request.is_json:
-                    return jsonify({"error": "Autenticação necessária"}), 401
-                return redirect(url_for("auth.login", next=request.url))
-
-            # Primeiro, verificar se o nivel_acesso está na sessão
-            if "user_level" not in session:
-                db = get_db()
-                usuario = db.execute(
-                    "SELECT * FROM usuario WHERE id = ?", (session["user_id"],)
-                ).fetchone()
-                db.close()  # Fechar a conexão após obter o usuário
-
-                # Corrigido: Acessar colunas usando notação de dicionário
-                if not usuario or not usuario["ativo"]:
-                    session.clear()
-                    if request.is_json:
-                        return (
-                            jsonify(
-                                {"error": "Usuário inativo ou não encontrado"}),
-                            401,
-                        )
-                    flash("Sua sessão expirou ou seu usuário está inativo.", "danger")
-                    return redirect(url_for("auth.login"))
-
-                # Adicionar o nivel_acesso à sessão se não existir
-                session["user_level"] = usuario["nivel_acesso"]
-
-            # Agora verificar permissões com o nível da sessão
-            if session["user_level"] not in niveis_permitidos:
-                if request.is_json:
-                    return jsonify({"error": "Acesso não autorizado"}), 403
-                flash("Você não tem permissão para acessar este recurso.", "danger")
-                # Redirecionar para uma página inicial ou de erro de acesso
-                return redirect(url_for("index"))
-
-            return f(*args, **kwargs)
-
-        return decorated_function
-
-    return decorator
-
-
-# Função para verificar acesso com hierarquia (gerente só pode acessar usuários abaixo dele)
-def acesso_requerido_com_hierarquia(niveis_permitidos):
-    """Decorador que verifica nível de acesso + hierarquia.
-    - Admin: pode acessar tudo
-    - Gerente: pode acessar apenas usuários com manager_id igual ao seu user_id
-    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -105,7 +48,59 @@ def acesso_requerido_com_hierarquia(niveis_permitidos):
                 if not usuario or not usuario["ativo"]:
                     session.clear()
                     if request.is_json:
-                        return jsonify({"error": "Usuário inativo ou não encontrado"}), 401
+                        return (
+                            jsonify(
+                                {"error": "Usuário inativo ou não encontrado"}),
+                            401,
+                        )
+                    flash("Sua sessão expirou ou seu usuário está inativo.", "danger")
+                    return redirect(url_for("auth.login"))
+
+                session["user_level"] = usuario["nivel_acesso"]
+
+            if session["user_level"] not in niveis_permitidos:
+                if request.is_json:
+                    return jsonify({"error": "Acesso não autorizado"}), 403
+                flash("Você não tem permissão para acessar este recurso.", "danger")
+
+                return redirect(url_for("index"))
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+
+    return decorator
+
+
+def acesso_requerido_com_hierarquia(niveis_permitidos):
+    """Decorador que verifica nível de acesso + hierarquia.
+    - Admin: pode acessar tudo
+    - Gerente: pode acessar apenas usuários com manager_id igual ao seu user_id
+    """
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user_id" not in session:
+                if request.is_json:
+                    return jsonify({"error": "Autenticação necessária"}), 401
+                return redirect(url_for("auth.login", next=request.url))
+
+            if "user_level" not in session:
+                db = get_db()
+                usuario = db.execute(
+                    "SELECT * FROM usuario WHERE id = ?", (session["user_id"],)
+                ).fetchone()
+                db.close()
+
+                if not usuario or not usuario["ativo"]:
+                    session.clear()
+                    if request.is_json:
+                        return (
+                            jsonify(
+                                {"error": "Usuário inativo ou não encontrado"}),
+                            401,
+                        )
                     flash("Sua sessão expirou ou seu usuário está inativo.", "danger")
                     return redirect(url_for("auth.login"))
 
@@ -124,9 +119,6 @@ def acesso_requerido_com_hierarquia(niveis_permitidos):
     return decorator
 
 
-# Rota de login
-
-
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -138,7 +130,7 @@ def login():
             return render_template("login.html")
 
         email = data.get("email")
-        senha = data.get("senha")  # Esta é a senha em texto plano
+        senha = data.get("senha")
 
         if not email or not senha:
             if request.is_json:
@@ -147,14 +139,13 @@ def login():
             return render_template("login.html")
 
         db = get_db()
-        # Note: SELECT * pega a senha_hash se a coluna existir
+
         usuario = db.execute(
             "SELECT * FROM usuario WHERE email = ?", (email,)
         ).fetchone()
-        # Não feche a conexão ainda se for usá-la novamente para o UPDATE
 
         if not usuario:
-            # Fechar a conexão antes de retornar se não for usá-la mais aqui
+
             db.close()
             if request.is_json:
                 return jsonify({"error": "Usuário não encontrado"}), 404
@@ -162,16 +153,15 @@ def login():
             return render_template("login.html")
 
         if not check_password_hash(usuario["senha_hash"], senha):
-            # Fechar a conexão antes de retornar
+
             db.close()
             if request.is_json:
                 return jsonify({"error": "Senha incorreta"}), 401
             flash("Senha incorreta", "danger")
             return render_template("login.html")
 
-        # Corrigido: Acessar a coluna 'ativo' do sqlite3.Row
         if not usuario["ativo"]:
-            # Fechar a conexão antes de retornar
+
             db.close()
             if request.is_json:
                 return jsonify({"error": "Usuário inativo"}), 401
@@ -181,29 +171,23 @@ def login():
             )
             return render_template("login.html")
 
-        # Registrar o acesso
-        # Reutilizando a conexão aberta anteriormente (ou reabrindo se fechou)
-        # db = get_db() # Se você fechou a conexão antes, reabra aqui
         try:
             db.execute(
                 "UPDATE usuario SET ultimo_acesso = ? WHERE id = ?",
-                # Corrigido: Acessando 'id' do sqlite3.Row
                 (datetime.now(), usuario["id"]),
             )
             db.commit()
         except Exception as e:
-            # Tratar erros de DB aqui, se necessário
-            print(f"Erro ao atualizar ultimo_acesso: {e}")
-            db.rollback()  # Desfaz a operação se der erro
-        finally:
-            db.close()  # Fechar a conexão depois de usá-la
 
-        # Criar sessão
-        # Corrigido: Acessando colunas usando notação de dicionário e garantindo o armazenamento correto do nivel_acesso
+            print(f"Erro ao atualizar ultimo_acesso: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
         session["user_id"] = usuario["id"]
         session["user_name"] = usuario["nome"]
         session["nome_usuario"] = usuario["nome"]
-        # Garantir que este valor é armazenado corretamente
+
         session["user_level"] = usuario["nivel_acesso"]
         session["user_email"] = usuario["email"]
         session.permanent = True
@@ -225,13 +209,9 @@ def login():
                 }
             )
 
-        # Certifique-se de que 'dashboard' é o endpoint correto
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
-
-
-# Rota de logout
 
 
 @auth_bp.route("/logout")
@@ -242,9 +222,6 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
-# API para gerenciar usuários (apenas admin)
-
-
 @auth_bp.route("/usuarios", methods=["GET"])
 @login_required
 @acesso_requerido(["admin"])
@@ -252,11 +229,13 @@ def listar_usuarios():
     db = None
     try:
         accepts = request.accept_mimetypes
-        wants_json = request.is_json or request.headers.get(
-            "X-Requested-With"
-        ) == "XMLHttpRequest" or (
-            accepts["application/json"] >= accepts["text/html"]
-            and accepts["application/json"] > 0
+        wants_json = (
+            request.is_json
+            or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            or (
+                accepts["application/json"] >= accepts["text/html"]
+                and accepts["application/json"] > 0
+            )
         )
 
         db = get_db()
@@ -264,22 +243,18 @@ def listar_usuarios():
             "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso FROM usuario ORDER BY nome"
         ).fetchall()
 
-        # CORREÇÃO PRINCIPAL: Sempre converter para lista de dicionários
         usuarios_list = [dict(u) for u in usuarios_raw] if usuarios_raw else []
 
         if wants_json:
             return jsonify({"usuarios": usuarios_list})
 
-        # Para renderização HTML, passar a lista de dicionários
         if not usuarios_list:
-            # Usar info para "nenhum dado"
+
             flash("Nenhum usuário encontrado.", "info")
 
-        # Passa a lista de dicionários para o template.
-        # O filtro `|tojson` no template cuidará da serialização para o script injetado.
         return render_template("usuarios.html", usuarios=usuarios_list)
     except Exception as e:
-        # app.logger.error(f"Erro ao listar usuários: {e}", exc_info=True)
+
         print(f"Erro ao listar usuários: {e}")
         flash_msg = "Erro ao carregar a lista de usuários."
         accepts = request.accept_mimetypes
@@ -290,15 +265,12 @@ def listar_usuarios():
         if wants_json:
             return jsonify({"error": flash_msg, "usuarios": []}), 500
         flash(flash_msg, "danger")
-        return render_template(
-            "usuarios.html", usuarios=[]
-        )  # Passa lista vazia em caso de erro
+        return render_template("usuarios.html", usuarios=[])
     finally:
         if db:
             db.close()
 
 
-# API para detalhes de um usuário
 @auth_bp.route("/usuarios/novo", methods=["GET", "POST"])
 @login_required
 @acesso_requerido(["admin"])
@@ -309,14 +281,14 @@ def novo_usuario():
         nome = data.get("nome")
         email = data.get("email")
         senha = data.get("senha")
-        # Default para operador
+
         nivel_acesso = data.get("nivel_acesso", "operador")
 
         if not all([nome, email, senha]):
             if request.is_json:
                 return jsonify({"error": "Nome, email e senha são obrigatórios"}), 400
             flash("Nome, email e senha são obrigatórios", "danger")
-            # Renderiza o form novamente
+
             return render_template("novo_usuario.html")
 
         db = get_db()
@@ -327,7 +299,7 @@ def novo_usuario():
         if userexiste:
             db.close()
             if request.is_json:
-                # Conflict
+
                 return jsonify({"error": "Email já cadastrado"}), 409
             flash("Email já cadastrado. Tente um email diferente.", "danger")
             return render_template("novo_usuario.html")
@@ -335,7 +307,7 @@ def novo_usuario():
         senha_hash = generate_password_hash(senha)
 
         try:
-            # Se um gerente está criando um novo usuário, salvar seu ID como manager_id
+
             manager_id = None
             if session.get("user_level") == "gerente":
                 manager_id = session.get("user_id")
@@ -349,12 +321,11 @@ def novo_usuario():
                     nivel_acesso,
                     1,
                     manager_id,
-                ),  # Novo usuário ativo por padrão, com manager_id se criado por gerente
+                ),
             )
             db.commit()
             novo_usuario_id = cursor.lastrowid
 
-            # Para resposta JSON, buscar o usuário recém-criado
             if request.is_json:
                 usuario_criado = db.execute(
                     "SELECT id, nome, email, nivel_acesso, ativo FROM usuario WHERE id = ?",
@@ -373,21 +344,18 @@ def novo_usuario():
 
             db.close()
             flash("Usuário cadastrado com sucesso!", "success")
-            return redirect(
-                url_for("auth.listar_usuarios")
-            )  # Redireciona para a lista após cadastro
+            return redirect(url_for("auth.listar_usuarios"))
 
         except Exception as e:
             db.rollback()
             db.close()
-            # app.logger.error(f"Erro ao cadastrar usuário: {e}", exc_info=True) # Use app.logger se configurado
+
             print(f"Erro ao cadastrar usuário: {e}")
             if request.is_json:
                 return jsonify({"error": "Erro interno ao cadastrar usuário"}), 500
             flash("Ocorreu um erro ao cadastrar o usuário. Tente novamente.", "danger")
             return render_template("novo_usuario.html")
 
-    # Método GET para /usuarios/novo
     return render_template("novo_usuario.html")
 
 
@@ -396,7 +364,6 @@ def novo_usuario():
 def usuario(id):
     db = get_db()
 
-    # Buscar o usuário alvo INCLUINDO manager_id para validar hierarquia
     usuario_row = db.execute(
         "SELECT id, nome, email, nivel_acesso, ativo, data_criacao, ultimo_acesso, manager_id FROM usuario WHERE id = ?",
         (id,),
@@ -409,7 +376,6 @@ def usuario(id):
         flash("Usuário não encontrado", "danger")
         return redirect(url_for("auth.listar_usuarios"))
 
-    # Validar acesso: Admin pode fazer tudo, Gerente pode editar apenas seus subordinados
     user_level = session.get("user_level")
     user_id = session.get("user_id")
 
@@ -420,17 +386,20 @@ def usuario(id):
         flash("Você não tem permissão para acessar este recurso.", "danger")
         return redirect(url_for("auth.listar_usuarios"))
 
-    # Se é gerente, validar se é seu subordinado
     if user_level == "gerente" and usuario_row["manager_id"] != user_id:
         db.close()
         if request.is_json:
-            return jsonify({"error": "Você só pode editar seus próprios subordinados."}), 403
+            return (
+                jsonify(
+                    {"error": "Você só pode editar seus próprios subordinados."}),
+                403,
+            )
         flash("Você só pode editar seus próprios subordinados.", "danger")
         return redirect(url_for("auth.listar_usuarios"))
 
     if request.method == "GET":
         db.close()
-        # A API de detalhes sempre retorna JSON, o template de edição é separado.
+
         return jsonify({"usuario": dict(usuario_row)})
 
     elif request.method == "PUT":
@@ -444,7 +413,7 @@ def usuario(id):
         if "nome" in data and data["nome"].strip():
             updates["nome"] = data["nome"].strip()
         if "email" in data and data["email"].strip():
-            # Verificar se o novo email já está em uso por OUTRO usuário
+
             email_existente = db.execute(
                 "SELECT id FROM usuario WHERE email = ? AND id != ?",
                 (data["email"].strip(), id),
@@ -468,9 +437,7 @@ def usuario(id):
         if "ativo" in data and isinstance(data["ativo"], bool):
             updates["ativo"] = 1 if data["ativo"] else 0
 
-        if (
-            "senha" in data and data["senha"]
-        ):  # Atualizar senha apenas se fornecida e não vazia
+        if "senha" in data and data["senha"]:
             updates["senha_hash"] = generate_password_hash(data["senha"])
 
         if not updates:
@@ -483,7 +450,7 @@ def usuario(id):
 
         set_clauses = [f"{key} = ?" for key in updates.keys()]
         param_values = list(updates.values())
-        param_values.append(id)  # Para o WHERE id = ?
+        param_values.append(id)
 
         try:
             db.execute(
@@ -505,7 +472,7 @@ def usuario(id):
         except Exception as e:
             db.rollback()
             db.close()
-            # app.logger.error(f"Erro ao atualizar usuário {id}: {e}", exc_info=True)
+
             print(f"Erro ao atualizar usuário {id}: {e}")
             return jsonify({"error": "Erro interno ao atualizar usuário"}), 500
 
@@ -515,8 +482,7 @@ def usuario(id):
             return jsonify({"error": "Não é possível excluir o próprio usuário."}), 400
 
         try:
-            # Adicionar verificação se o usuário tem dependências (ex: movimentações, vendas)
-            # Por simplicidade, vamos apenas excluir. Em um sistema real, isso seria importante.
+
             db.execute("DELETE FROM usuario WHERE id = ?", (id,))
             db.commit()
             db.close()
@@ -524,15 +490,14 @@ def usuario(id):
         except Exception as e:
             db.rollback()
             db.close()
-            # app.logger.error(f"Erro ao excluir usuário {id}: {e}", exc_info=True)
+
             print(f"Erro ao excluir usuário {id}: {e}")
             return jsonify({"error": "Erro interno ao excluir usuário"}), 500
 
-    db.close()  # Fallback
+    db.close()
     return jsonify({"error": "Método não suportado"}), 405
 
 
-# Rota para página de edição de usuário (se você quiser uma página dedicada além do modal)
 @auth_bp.route("/usuarios/editar/<int:id>/page", methods=["GET"])
 @login_required
 @acesso_requerido(["admin"])
@@ -581,7 +546,7 @@ def alterar_senha():
 
         if not usuario:
             db.close()
-            session.clear()  # Deslogar se o usuário não for encontrado
+            session.clear()
             flash_msg = "Usuário não encontrado. Sua sessão pode ter expirado."
             if request.is_json:
                 return jsonify({"error": flash_msg}), 404
@@ -609,11 +574,11 @@ def alterar_senha():
             if request.is_json:
                 return jsonify({"message": flash_msg})
             flash(flash_msg, "success")
-            return redirect(url_for("dashboard"))  # Ou página de perfil
+            return redirect(url_for("dashboard"))
         except Exception as e:
             db.rollback()
             db.close()
-            # app.logger.error(f"Erro ao alterar senha do usuário {usuario['id']}: {e}", exc_info=True)
+
             print(f"Erro ao alterar senha do usuário {usuario['id']}: {e}")
             flash_msg = "Ocorreu um erro ao alterar a senha. Tente novamente."
             if request.is_json:

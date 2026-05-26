@@ -7,7 +7,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from dotenv import load_dotenv
 
-# ---- Importar blueprints ----
+
 from auth import auth_bp
 from produtos import produtos_bp
 from estoque import estoque_bp
@@ -15,21 +15,18 @@ from fornecedores import fornecedores_bp
 from relatorios import relatorios_bp
 
 
-# Carregar variáveis de ambiente
 load_dotenv()
 
 
 def create_app():
     app = Flask(__name__)
 
-    # Configuração do SQLite
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(24).hex())
     app.config["SESSION_COOKIE_SECURE"] = os.getenv(
         "FLASK_ENV") != "development"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
 
-    # Configurar logs
     if not os.path.exists("logs"):
         os.makedirs("logs")
     log_handler = RotatingFileHandler(
@@ -40,18 +37,15 @@ def create_app():
     app.logger.addHandler(log_handler)
     app.logger.setLevel(logging.INFO)
 
-    # Registrar blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(produtos_bp, url_prefix="/produtos")
     app.register_blueprint(estoque_bp, url_prefix="/estoque")
     app.register_blueprint(relatorios_bp, url_prefix="/relatorios")
     app.register_blueprint(fornecedores_bp, url_prefix="/fornecedores")
 
-    # Criar tabelas se não existirem
     with app.app_context():
         init_db_sqlite()
 
-    # Verificação de login antes de cada requisição
     @app.before_request
     def require_login():
         allowed_endpoints = ["auth.login", "static", "init_data"]
@@ -67,18 +61,15 @@ def create_app():
                 return jsonify({"error": "Autenticação necessária"}), 401
             return redirect(url_for("auth.login"))
 
-    # Rota principal
     @app.route("/")
     def index():
         return redirect(url_for("dashboard"))
 
-    # Dashboard
     @app.route("/dashboard")
     def dashboard():
         now = datetime.now()
         return render_template("dashboard.html", now=now)
 
-    # Dados do dashboard
     @app.route("/api/dashboard/stats")
     def dashboard_stats():
         with app.app_context():
@@ -97,10 +88,9 @@ def create_app():
     return app
 
 
-# Para uso com o Flask CLI
 app = create_app()
 
 if __name__ == "__main__":
-    # Iniciar a aplicação
+
     port = int(os.environ.get("PORT", 80))
     app.run(host="0.0.0.0", port=port)

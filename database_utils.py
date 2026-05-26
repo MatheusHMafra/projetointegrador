@@ -9,29 +9,25 @@ from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 
-# Configure logger for this module
-logger = logging.getLogger(__name__)  # Use __name__ for module-specific logger
-# If Flask app's logger is already configured, this will use that configuration.
-# Otherwise, you might need to add basicConfig if running standalone.
-# logging.basicConfig(level=logging.INFO) # Example basic config
 
-DATABASE_NAME = "estoque.db"  # Define database name as a constant
+logger = logging.getLogger(__name__)
+
+
+DATABASE_NAME = "estoque.db"
 
 
 def get_db():
     """Obtém uma conexão com o banco de dados."""
-    # Using os.path.join for cross-platform compatibility if DB is in a specific subdir
-    # For now, assuming it's in the root or Flask instance path handles it.
+
     conn = sqlite3.connect(database=DATABASE_NAME, check_same_thread=False)
-    conn.row_factory = sqlite3.Row  # Para acessar colunas por nome
-    # Enable foreign key constraint enforcement for each connection
+    conn.row_factory = sqlite3.Row
+
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
     conn.execute("PRAGMA cache_size = -2000;")
     conn.execute("PRAGMA temp_store = MEMORY;")
     return conn
-
 
 
 def inicializar_dados_exemplo():
@@ -44,7 +40,7 @@ def inicializar_dados_exemplo():
         cursor.execute("SELECT COUNT(*) FROM usuario")
         if cursor.fetchone()[0] == 0:
             logger.info("Inserindo dados de exemplo...")
-            # Inserir usuários padrão
+
             senha_hash_admin = generate_password_hash("admin123")
             cursor.execute(
                 "INSERT INTO usuario (nome, email, senha_hash, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)",
@@ -69,7 +65,6 @@ def inicializar_dados_exemplo():
                 ),
             )
 
-            # Inserir categorias padrão
             categorias = [
                 ("Papelaria", "Itens de papelaria como cadernos, canetas, etc."),
                 ("Escritório", "Material de escritório, organizadores."),
@@ -81,7 +76,6 @@ def inicializar_dados_exemplo():
                 "INSERT INTO categoria (nome, descricao) VALUES (?, ?)", categorias
             )
 
-            # Inserir fornecedores padrão
             fornecedores = [
                 (
                     "Distribuidora Escolar Ltda",
@@ -112,7 +106,7 @@ def inicializar_dados_exemplo():
                     "Sofia Mendes",
                     "Produtos diferenciados",
                     0,
-                ),  # Inativo
+                ),
                 (
                     "Office Supplies Brasil",
                     "98.765.432/0001-21",
@@ -132,7 +126,6 @@ def inicializar_dados_exemplo():
                 fornecedores,
             )
 
-            # Obter IDs das categorias e fornecedores para associar aos produtos
             cursor.execute("SELECT id FROM categoria WHERE nome = 'Papelaria'")
             cat_papelaria_id = cursor.fetchone()["id"]
             cursor.execute(
@@ -231,13 +224,13 @@ def inicializar_dados_exemplo():
             logger.info(
                 "Banco de dados já contém dados. Nenhuma inserção de exemplo realizada."
             )
-        return True  # Indica sucesso ou que dados já existiam
+        return True
     except sqlite3.Error as e:
         logger.error(
             f"Erro ao inicializar dados de exemplo: {e}", exc_info=True)
         if conn:
             conn.rollback()
-        return False  # Indica falha
+        return False
     finally:
         if conn:
             conn.close()
@@ -252,42 +245,35 @@ def obter_estatisticas():
 
         resultado = {}
 
-        # Total de produtos
         cursor.execute(
             "SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 1")
         resultado["total_produtos"] = cursor.fetchone()[0]
 
-        # Total de categorias
         cursor.execute("SELECT COUNT(id) FROM categoria")
         resultado["total_categorias"] = cursor.fetchone()[0]
 
-        # Total de fornecedores ativos
         cursor.execute("SELECT COUNT(id) FROM fornecedores WHERE ativo = 1")
         resultado["total_fornecedores_ativos"] = cursor.fetchone()[0]
 
-        # Valor total em estoque (baseado no preço de compra)
         cursor.execute(
             "SELECT SUM(estoque * preco_compra) FROM produto WHERE estoque > 0 AND preco_compra > 0 AND COALESCE(ativo, 1) = 1"
         )
         resultado["valor_total_estoque"] = cursor.fetchone()[0] or 0.0
 
-        # Produtos com estoque baixo
         cursor.execute(
             "SELECT COUNT(id) FROM produto WHERE estoque <= estoque_minimo AND estoque > 0 AND COALESCE(ativo, 1) = 1"
         )
         resultado["produtos_estoque_baixo"] = cursor.fetchone()[0]
 
-        # Produtos sem estoque
         cursor.execute(
-            "SELECT COUNT(id) FROM produto WHERE estoque = 0 AND COALESCE(ativo, 1) = 1")
+            "SELECT COUNT(id) FROM produto WHERE estoque = 0 AND COALESCE(ativo, 1) = 1"
+        )
         resultado["produtos_sem_estoque"] = cursor.fetchone()[0]
 
-        # Produtos inativos
         cursor.execute(
             "SELECT COUNT(id) FROM produto WHERE COALESCE(ativo, 1) = 0")
         resultado["produtos_inativos"] = cursor.fetchone()[0]
 
-        # Vendas nos últimos 30 dias (contagem e valor)
         trinta_dias_atras = (
             datetime.datetime.now() - datetime.timedelta(days=30)
         ).strftime("%Y-%m-%d %H:%M:%S")
@@ -299,7 +285,6 @@ def obter_estatisticas():
         resultado["vendas_ultimos_30_dias_contagem"] = vendas_dados[0]
         resultado["vendas_ultimos_30_dias_valor"] = vendas_dados[1] or 0.0
 
-        # Movimentações recentes (últimas 5)
         cursor.execute(
             """
             SELECT m.id, p.nome as produto_nome, m.tipo, m.quantidade, m.data_movimento, u.nome as usuario_nome
@@ -315,18 +300,17 @@ def obter_estatisticas():
         resultado["movimentacoes_recentes"] = []
         for row in mov_recentes_raw:
             mov_dict = dict(row)
-            # Format date for display
+
             try:
                 dt_obj = datetime.datetime.fromisoformat(
                     mov_dict["data_movimento"])
                 mov_dict["data_movimento_fmt"] = dt_obj.strftime(
                     "%d/%m/%y %H:%M")
             except Exception:
-                # fallback
+
                 mov_dict["data_movimento_fmt"] = mov_dict["data_movimento"]
             resultado["movimentacoes_recentes"].append(mov_dict)
 
-        # Entradas por classificação
         cursor.execute(
             """
             SELECT COALESCE(classificacao, 'outro') as classif, SUM(ABS(quantidade)) as total
@@ -336,9 +320,10 @@ def obter_estatisticas():
             """
         )
         entradas_rows = cursor.fetchall()
-        resultado["entradas_por_classificacao"] = {row["classif"]: row["total"] for row in entradas_rows}
+        resultado["entradas_por_classificacao"] = {
+            row["classif"]: row["total"] for row in entradas_rows
+        }
 
-        # Saídas por classificação
         cursor.execute(
             """
             SELECT COALESCE(classificacao, 'outro') as classif, SUM(ABS(quantidade)) as total
@@ -348,13 +333,15 @@ def obter_estatisticas():
             """
         )
         saidas_rows = cursor.fetchall()
-        resultado["saidas_por_classificacao"] = {row["classif"]: row["total"] for row in saidas_rows}
+        resultado["saidas_por_classificacao"] = {
+            row["classif"]: row["total"] for row in saidas_rows
+        }
 
         return resultado
 
     except sqlite3.Error as e:
         logger.error(f"Erro ao obter estatísticas: {e}", exc_info=True)
-        # Return a default structure in case of error to prevent frontend issues
+
         return {
             "total_produtos": 0,
             "total_categorias": 0,
@@ -376,7 +363,13 @@ def obter_estatisticas():
 
 
 def registrar_movimento(
-    produto_id, tipo, quantidade, usuario_id=None, observacao=None, venda_id=None, classificacao=None
+    produto_id,
+    tipo,
+    quantidade,
+    usuario_id=None,
+    observacao=None,
+    venda_id=None,
+    classificacao=None,
 ):
     """
     Registra um movimento de estoque e atualiza o estoque do produto.
@@ -401,7 +394,6 @@ def registrar_movimento(
         raise ValueError(
             "Produto ID e Tipo são obrigatórios para registrar movimento.")
 
-    # Para 'ajuste', quantidade é o novo estoque. Para outros, é a delta.
     if tipo not in ["entrada", "saida", "ajuste", "venda"]:
         raise ValueError(
             "Tipo de movimento inválido. Use 'entrada', 'saida', 'ajuste' ou 'venda'."
@@ -421,7 +413,7 @@ def registrar_movimento(
     try:
         conn = get_db()
         cursor = conn.cursor()
-        conn.execute("BEGIN TRANSACTION")  # Iniciar transação
+        conn.execute("BEGIN TRANSACTION")
 
         cursor.execute(
             "SELECT id, nome, estoque FROM produto WHERE id = ?", (produto_id,)
@@ -432,7 +424,7 @@ def registrar_movimento(
             raise ValueError(f"Produto com ID {produto_id} não encontrado.")
 
         estoque_anterior = produto["estoque"]
-        quantidade_movimentada = 0  # Delta real que foi movimentado
+        quantidade_movimentada = 0
 
         if tipo == "entrada":
             estoque_novo = estoque_anterior + quantidade
@@ -443,36 +435,18 @@ def registrar_movimento(
                     f"Estoque insuficiente para '{produto['nome']}'. Disponível: {estoque_anterior}, Solicitado: {quantidade}."
                 )
             estoque_novo = estoque_anterior - quantidade
-            quantidade_movimentada = -quantidade  # Negativo para saida/venda
+            quantidade_movimentada = -quantidade
         elif tipo == "ajuste":
-            estoque_novo = (
-                quantidade  # 'quantidade' aqui é o novo valor absoluto do estoque
-            )
+            estoque_novo = quantidade
             quantidade_movimentada = estoque_novo - estoque_anterior
         else:
-            # Should not happen due to earlier check, but as a safeguard:
+
             raise ValueError(f"Tipo de movimento desconhecido: {tipo}")
 
-        # Atualizar estoque do produto
         cursor.execute(
             "UPDATE produto SET estoque = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
             (estoque_novo, produto_id),
         )
-
-        # Registrar movimento
-        # Nota: para 'ajuste', a 'quantidade' na tabela estoque_movimentacao registrará a DIFERENÇA.
-        # Se o tipo for 'ajuste', a `quantidade_movimentada` calculada acima já é a diferença.
-        # Se o tipo for 'entrada', 'saida', 'venda', `quantidade` é a delta.
-
-        # A coluna 'quantidade' em estoque_movimentacao deve sempre refletir a variação.
-        # Se o tipo é 'ajuste', a 'quantidade' que foi passada para a função era o *novo valor total*.
-        # A variação é `estoque_novo - estoque_anterior`.
-
-        # Se tipo for 'entrada', 'saida', 'venda', a 'quantidade' passada é a variação.
-        # Para consistência na tabela estoque_movimentacao, a coluna 'quantidade' deve ser a variação.
-
-        # Para 'entrada', 'saida', 'venda', a `quantidade` passada é a variação.
-        # Para 'ajuste', a `quantidade_movimentada` é a variação.
 
         db_mov_quantidade = (
             quantidade_movimentada
@@ -499,7 +473,7 @@ def registrar_movimento(
             ),
         )
         movimento_id = cursor.lastrowid
-        conn.commit()  # Finalizar transação
+        conn.commit()
 
         logger.info(
             f"Movimento de estoque ID {movimento_id} registrado: {tipo}, Produto ID {produto_id} ({produto['nome']}), "
@@ -511,12 +485,12 @@ def registrar_movimento(
             "produto_id": produto_id,
             "produto_nome": produto["nome"],
             "tipo": tipo,
-            "quantidade_movimentada": db_mov_quantidade,  # A variação efetiva
+            "quantidade_movimentada": db_mov_quantidade,
             "estoque_anterior": estoque_anterior,
             "estoque_atual": estoque_novo,
             "usuario_id": usuario_id,
             "observacao": observacao,
-            "data_movimento": datetime.datetime.now().isoformat(),  # Padronizar formato de data
+            "data_movimento": datetime.datetime.now().isoformat(),
         }
 
     except (ValueError, sqlite3.Error) as e:
@@ -526,7 +500,7 @@ def registrar_movimento(
             f"Erro ao registrar movimento de estoque para produto ID {produto_id}: {e}",
             exc_info=True,
         )
-        raise  # Re-raise a exceção para ser tratada pela rota que chamou
+        raise
     finally:
         if conn:
             conn.close()
@@ -556,7 +530,6 @@ def buscar_produtos(
         conn = get_db()
         cursor = conn.cursor()
 
-        # Base da query
         query_select = """
             SELECT
                 p.id, p.codigo, p.nome, p.descricao, p.preco, p.preco_compra,
@@ -567,7 +540,7 @@ def buscar_produtos(
             LEFT JOIN categoria c ON p.categoria_id = c.id
             LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
-        query_count = "SELECT COUNT(p.id) FROM produto p"  # Para contagem total
+        query_count = "SELECT COUNT(p.id) FROM produto p"
 
         where_clauses = []
         params = []
@@ -578,7 +551,7 @@ def buscar_produtos(
             where_clauses.append("COALESCE(p.ativo, 1) = 1")
 
         if termo:
-            # Busca por código, nome ou descrição
+
             where_clauses.append(
                 "(p.codigo LIKE ? OR p.nome LIKE ? OR p.descricao LIKE ?)"
             )
@@ -593,38 +566,31 @@ def buscar_produtos(
         if estoque_baixo:
             where_clauses.append("p.estoque <= p.estoque_minimo")
 
-        # Montar cláusula WHERE
         where_sql = ""
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
 
-        # Executar query de contagem
         cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
         total_pages = (total_items + per_page -
                        1) // per_page if per_page > 0 else 1
 
-        # Validar e montar cláusula ORDER BY
         allowed_sort_columns = [
             "p.nome",
             "p.preco",
             "p.estoque",
             "p.data_criacao",
-        ]  # Adicionar mais se necessário
+        ]
         if ordenar_por not in allowed_sort_columns:
-            ordenar_por = "p.nome"  # Default seguro
+            ordenar_por = "p.nome"
 
-        direcao_segura = (
-            "DESC" if direcao.upper() == "DESC" else "ASC"
-        )  # Default seguro
+        direcao_segura = "DESC" if direcao.upper() == "DESC" else "ASC"
 
         order_by_sql = f" ORDER BY {ordenar_por} {direcao_segura}"
 
-        # Montar query de paginação
         limit_offset_sql = " LIMIT ? OFFSET ?"
         pagination_params = [per_page, (page - 1) * per_page]
 
-        # Executar query principal
         final_query = query_select + where_sql + order_by_sql + limit_offset_sql
         cursor.execute(final_query, params + pagination_params)
         produtos_rows = cursor.fetchall()
@@ -668,11 +634,6 @@ def obter_dados_movimentacao_grafico(dias=30):
             datetime.date.today() - datetime.timedelta(days=dias - 1)
         ).strftime("%Y-%m-%d")
 
-        # Query para agrupar por dia e tipo
-        # Usamos strftime('%Y-%m-%d', data_movimento) para agrupar por dia
-        # Somamos 'quantidade' para entradas e subtraímos para saídas/vendas
-        # Ajustes são mais complexos para um gráfico simples de entrada/saída,
-        # então focaremos em entradas e saídas/vendas diretas.
         query = """
             SELECT
                 strftime('%Y-%m-%d', data_movimento) as dia,
@@ -686,13 +647,10 @@ def obter_dados_movimentacao_grafico(dias=30):
         cursor.execute(query, (data_limite,))
         rows = cursor.fetchall()
 
-        # Preparar dados para o gráfico
         labels = []
         entradas = []
         saidas = []
 
-        # Criar um dicionário com todos os dias no período para garantir que todos apareçam
-        # mesmo que não tenham movimentação.
         date_map = {}
         for i in range(dias):
             day = datetime.date.today() - datetime.timedelta(days=i)
@@ -700,25 +658,24 @@ def obter_dados_movimentacao_grafico(dias=30):
 
         for row in rows:
             dia_str = row["dia"]
-            if dia_str in date_map:  # Adiciona apenas se estiver no range esperado
+            if dia_str in date_map:
                 date_map[dia_str]["entradas"] = (
                     row["total_entradas"] if row["total_entradas"] else 0
                 )
-                # Saídas são armazenadas como negativas na tabela, então pegamos o valor absoluto ou somamos se já for positivo
+
                 date_map[dia_str]["saidas"] = (
                     abs(row["total_saidas"]) if row["total_saidas"] else 0
                 )
 
-        # Ordenar pela data para o gráfico
         sorted_dates = sorted(date_map.keys())
 
         for dia_str in sorted_dates:
-            # Formatar data para DD/MM para o label
+
             try:
                 dt_obj = datetime.datetime.strptime(dia_str, "%Y-%m-%d")
                 labels.append(dt_obj.strftime("%d/%m"))
             except ValueError:
-                labels.append(dia_str)  # Fallback
+                labels.append(dia_str)
 
             entradas.append(date_map[dia_str]["entradas"])
             saidas.append(date_map[dia_str]["saidas"])
@@ -752,7 +709,6 @@ def adicionar_venda(
 
         valor_total_bruto = 0.0
 
-        # Primeiro, calcular o valor total bruto e validar itens
         for item_data in itens:
             if not all(
                 k in item_data for k in ("produto_id", "quantidade", "preco_unitario")
@@ -813,7 +769,6 @@ def adicionar_venda(
             preco_unitario = item_data["preco_unitario"]
             subtotal = quantidade * preco_unitario
 
-            # Registrar movimento de estoque (saída por venda)
             registrar_movimento(
                 produto_id=produto_id,
                 tipo="venda",

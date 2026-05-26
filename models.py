@@ -1,7 +1,7 @@
 import sqlite3
 from database_utils import get_db
 
-# Instruções SQL para criar as tabelas
+
 SQL_CREATE_USUARIO = """
 CREATE TABLE IF NOT EXISTS usuario (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS grupo_produto (
 );
 """
 
-# Tabela de associação para a relação muitos-para-muitos entre Produto e GrupoProduto
+
 SQL_CREATE_PRODUTOS_GRUPOS = """
 CREATE TABLE IF NOT EXISTS produtos_grupos (
     produto_id INTEGER NOT NULL,
@@ -137,61 +137,46 @@ CREATE TABLE IF NOT EXISTS item_venda (
 """
 
 
-# Função para inicializar o banco de dados com sqlite3
 def init_db_sqlite():
     """
     Conecta ao banco de dados e cria as tabelas se elas não existirem.
     """
-    db_conn = None  # Inicializa a variável de conexão
+    db_conn = None
     try:
-        # 1. Obter a conexão com o banco de dados
-        db_conn = get_db()  # Sua função que retorna a conexão sqlite3
+
+        db_conn = get_db()
         cursor = db_conn.cursor()
 
-        # 2. Habilitar suporte a chaves estrangeiras (importante no SQLite)
         cursor.execute("PRAGMA foreign_keys = ON;")
 
-        # 3. Executar os comandos CREATE TABLE e CREATE INDEX
         print("Criando tabela usuario...")
         cursor.execute(SQL_CREATE_USUARIO)
         print("Criando tabela categoria...")
         cursor.execute(SQL_CREATE_CATEGORIA)
         print("Criando tabela fornecedor...")
-        cursor.execute(
-            SQL_CREATE_FORNECEDOR
-        )  # Usa a constante que agora cria 'fornecedores'
+        cursor.execute(SQL_CREATE_FORNECEDOR)
         print("Criando tabela produto...")
-        cursor.execute(
-            SQL_CREATE_PRODUTO
-        )  # Usa a constante que agora referencia 'fornecedores'
+        cursor.execute(SQL_CREATE_PRODUTO)
 
-        # Migração leve para bases antigas sem coluna de status em produto.
         cursor.execute("PRAGMA table_info(produto)")
         produto_cols = [row[1] for row in cursor.fetchall()]
         if "ativo" not in produto_cols:
             print("Adicionando coluna ativo em produto...")
             cursor.execute(
-                "ALTER TABLE produto ADD COLUMN ativo INTEGER DEFAULT 1"
-            )
+                "ALTER TABLE produto ADD COLUMN ativo INTEGER DEFAULT 1")
             cursor.execute("UPDATE produto SET ativo = 1 WHERE ativo IS NULL")
 
-        # Migração leve para bases antigas sem manager_id em usuario.
         cursor.execute("PRAGMA table_info(usuario)")
         usuario_cols = [row[1] for row in cursor.fetchall()]
         if "manager_id" not in usuario_cols:
             print("Adicionando coluna manager_id em usuario...")
-            cursor.execute(
-                "ALTER TABLE usuario ADD COLUMN manager_id INTEGER"
-            )
+            cursor.execute("ALTER TABLE usuario ADD COLUMN manager_id INTEGER")
 
         print("Criando índice em produto.codigo...")
         cursor.execute(SQL_CREATE_INDEX_PRODUTO_CODIGO)
         print("Criando tabela estoque_movimentacao...")
-        cursor.execute(
-            SQL_CREATE_ESTOQUE_MOVIMENTACAO
-        )  # Usa a constante com o nome corrigido
+        cursor.execute(SQL_CREATE_ESTOQUE_MOVIMENTACAO)
 
-        # Migração leve para bases antigas sem vínculo opcional com venda.
         cursor.execute("PRAGMA table_info(estoque_movimentacao)")
         estoque_mov_cols = [row[1] for row in cursor.fetchall()]
         if "venda_id" not in estoque_mov_cols:
@@ -200,7 +185,6 @@ def init_db_sqlite():
                 "ALTER TABLE estoque_movimentacao ADD COLUMN venda_id INTEGER"
             )
 
-        # Migração leve para bases antigas sem coluna classificacao em estoque_movimentacao.
         if "classificacao" not in estoque_mov_cols:
             print("Adicionando coluna classificacao em estoque_movimentacao...")
             cursor.execute(
@@ -218,17 +202,16 @@ def init_db_sqlite():
         print("Criando tabela item_venda...")
         cursor.execute(SQL_CREATE_ITEM_VENDA)
 
-        # 4. Confirmar as alterações (commit)
         db_conn.commit()
         print("Banco de dados inicializado com sucesso!")
 
     except sqlite3.Error as e:
         print(f"Erro ao inicializar o banco de dados: {e}")
-        # Opcional: fazer rollback em caso de erro
+
         if db_conn:
             db_conn.rollback()
     finally:
-        # 5. Fechar a conexão (se get_db não gerencia isso)
+
         if db_conn:
             db_conn.close()
             print("Conexão com o banco de dados fechada.")

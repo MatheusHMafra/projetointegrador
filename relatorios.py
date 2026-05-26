@@ -5,17 +5,17 @@ from flask import (
     request,
     current_app,
     render_template,
-)  # Added session and current_app
-from database_utils import get_db  # Utility to get DB connection
-from auth import login_required, acesso_requerido  # Auth decorators
+)
+from database_utils import get_db
+from auth import login_required, acesso_requerido
 
-# Criar um novo Blueprint para Relatórios
+
 relatorios_bp = Blueprint("relatorios", __name__, url_prefix="/relatorios")
 
 
 @relatorios_bp.route("/vendas/produtos", methods=["GET"])
 @login_required
-@acesso_requerido(["admin", "gerente"])  # Restringir acesso
+@acesso_requerido(["admin", "gerente"])
 def get_product_sales_reports():
     """
     Gera relatórios de produtos mais e menos vendidos.
@@ -27,10 +27,9 @@ def get_product_sales_reports():
         cursor = conn.cursor()
 
         limit = request.args.get("limit", 10, type=int)
-        if not (0 < limit <= 100):  # Adicionar um limite máximo razoável
+        if not (0 < limit <= 100):
             limit = 10
 
-        # --- Query Base para agregação de vendas de produtos ---
         base_sql_vendas = """
             SELECT
                 p.id as produto_id,
@@ -52,7 +51,6 @@ def get_product_sales_reports():
             HAVING total_vendido > 0
         """
 
-        # --- Produtos Mais Vendidos ---
         query_mais_vendidos = (
             f"{base_sql_vendas} ORDER BY total_vendido DESC, produto_nome ASC LIMIT ?"
         )
@@ -60,7 +58,6 @@ def get_product_sales_reports():
         mais_vendidos_rows = cursor.fetchall()
         mais_vendidos = [dict(row) for row in mais_vendidos_rows]
 
-        # --- Produtos Menos Vendidos (dentre os que foram vendidos) ---
         query_menos_vendidos = (
             f"{base_sql_vendas} ORDER BY total_vendido ASC, produto_nome ASC LIMIT ?"
         )
@@ -68,7 +65,6 @@ def get_product_sales_reports():
         menos_vendidos_rows = cursor.fetchall()
         menos_vendidos = [dict(row) for row in menos_vendidos_rows]
 
-        # --- Produtos Não Vendidos ---
         query_nao_vendidos = """
             SELECT
                 p.id as produto_id,
@@ -116,8 +112,6 @@ def get_product_sales_reports():
             conn.close()
 
 
-# Outras rotas de relatório podem ser adicionadas aqui
-# Exemplo: Relatório de Níveis de Estoque
 @relatorios_bp.route("/estoque/niveis", methods=["GET"])
 @login_required
 @acesso_requerido(["admin", "gerente"])
@@ -130,10 +124,8 @@ def get_stock_level_reports():
 
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
-        status_filter = request.args.get("status")  # 'baixo', 'ok', 'excesso'
+        status_filter = request.args.get("status")
 
-        # Query base
-        # Corrected table name for join
         query_select = """
             SELECT p.id, p.codigo, p.nome, p.estoque, p.estoque_minimo,
                    c.nome as categoria_nome, f.nome as fornecedor_nome,
@@ -146,9 +138,7 @@ def get_stock_level_reports():
             LEFT JOIN categoria c ON p.categoria_id = c.id
             LEFT JOIN fornecedores f ON p.fornecedor_id = f.id
         """
-        query_count = (
-            "SELECT COUNT(p.id) FROM produto p"
-        )
+        query_count = "SELECT COUNT(p.id) FROM produto p"
 
         where_clauses = []
         params = []
@@ -169,14 +159,11 @@ def get_stock_level_reports():
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
 
-        # Contagem
-        # The count query also needs the WHERE clause
         cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
         total_pages = (total_items + per_page -
                        1) // per_page if per_page > 0 else 1
 
-        # Listagem
         order_by_sql = " ORDER BY p.nome ASC"
 
         final_query = query_select + where_sql + order_by_sql
@@ -234,7 +221,7 @@ def get_supplier_summary_report():
 
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
-        status_filter = request.args.get("status")  # 'ativos', 'inativos' or None
+        status_filter = request.args.get("status")
 
         query_select = """
             SELECT 
@@ -264,12 +251,11 @@ def get_supplier_summary_report():
         if where_clauses:
             where_sql = " WHERE " + " AND ".join(where_clauses)
 
-        # Count query
         cursor.execute(query_count + where_sql, params)
         total_items = cursor.fetchone()[0]
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
-        # Groups
         group_by_sql = " GROUP BY f.id, f.nome, f.cnpj, f.telefone, f.email, f.ativo"
         order_by_sql = " ORDER BY fornecedor_nome ASC"
 
@@ -292,7 +278,9 @@ def get_supplier_summary_report():
             f"Erro de BD ao gerar resumo de fornecedores: {e}", exc_info=True
         )
         return (
-            jsonify({"error": "Erro no banco de dados ao gerar resumo de fornecedores."}),
+            jsonify(
+                {"error": "Erro no banco de dados ao gerar resumo de fornecedores."}
+            ),
             500,
         )
     except Exception as e:
@@ -318,7 +306,7 @@ def get_supplier_products_report():
         conn = get_db()
         cursor = conn.cursor()
 
-        status_filter = request.args.get("status")  # 'ativos', 'inativos' or None
+        status_filter = request.args.get("status")
 
         query = """
             SELECT 
@@ -352,7 +340,6 @@ def get_supplier_products_report():
         cursor.execute(query, params)
         rows = cursor.fetchall()
 
-        # Agrupar por fornecedor
         fornecedores_dict = {}
         for row in rows:
             f_id = row["fornecedor_id"]
@@ -361,22 +348,26 @@ def get_supplier_products_report():
                     "id": f_id,
                     "nome": row["fornecedor_nome"],
                     "cnpj": row["fornecedor_cnpj"],
-                    "produtos": []
+                    "produtos": [],
                 }
             if row["produto_id"] is not None:
-                fornecedores_dict[f_id]["produtos"].append({
-                    "id": row["produto_id"],
-                    "codigo": row["produto_codigo"],
-                    "nome": row["produto_nome"],
-                    "preco": row["produto_preco"],
-                    "preco_compra": row["produto_preco_compra"],
-                    "estoque": row["produto_estoque"],
-                    "ativo": row["produto_ativo"]
-                })
+                fornecedores_dict[f_id]["produtos"].append(
+                    {
+                        "id": row["produto_id"],
+                        "codigo": row["produto_codigo"],
+                        "nome": row["produto_nome"],
+                        "preco": row["produto_preco"],
+                        "preco_compra": row["produto_preco_compra"],
+                        "estoque": row["produto_estoque"],
+                        "ativo": row["produto_ativo"],
+                    }
+                )
 
         return jsonify(list(fornecedores_dict.values()))
     except sqlite3.Error as e:
-        current_app.logger.error(f"Erro de BD ao gerar produtos por fornecedor: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro de BD ao gerar produtos por fornecedor: {e}", exc_info=True
+        )
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
         current_app.logger.error(f"Erro inesperado: {e}", exc_info=True)
@@ -424,7 +415,9 @@ def get_operator_sales_report():
 
         return jsonify([dict(row) for row in rows])
     except sqlite3.Error as e:
-        current_app.logger.error(f"Erro de BD ao gerar vendas por operador: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro de BD ao gerar vendas por operador: {e}", exc_info=True
+        )
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
         current_app.logger.error(f"Erro inesperado: {e}", exc_info=True)

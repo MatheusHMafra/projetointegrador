@@ -21,12 +21,11 @@ from auth import (
 )
 from werkzeug.utils import secure_filename
 
-# Configuração para uploads de imagens
-UPLOAD_FOLDER = os.path.join(
-    "static", "uploads", "produtos")
+
+UPLOAD_FOLDER = os.path.join("static", "uploads", "produtos")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
-# Criar Blueprint para produtos
+
 produtos_bp = Blueprint("produtos", __name__, url_prefix="/produtos")
 
 
@@ -35,7 +34,6 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# --- API para Categorias ---
 @produtos_bp.route("/categorias", methods=["GET", "POST"])
 @login_required
 def gerenciar_categorias():
@@ -49,7 +47,7 @@ def gerenciar_categorias():
         cursor = conn.cursor()
 
         if request.method == "GET":
-            # Query otimizada para buscar categorias e contagem de produtos associados
+
             cursor.execute(
                 """
                 SELECT c.id, c.nome, c.descricao, COUNT(p.id) as total_produtos
@@ -83,7 +81,7 @@ def gerenciar_categorias():
                 return (
                     jsonify({"error": "Já existe uma categoria com este nome."}),
                     409,
-                )  # Conflict
+                )
 
             cursor.execute(
                 "INSERT INTO categoria (nome, descricao) VALUES (?, ?)",
@@ -193,10 +191,7 @@ def gerenciar_categoria_especifica(categoria_id):
                             {"error": "Já existe outra categoria com este nome."}),
                         409,
                     )
-            # Assuming 'ultima_atualizacao' column exists in 'categoria' table
-            # If not, this part of the query will cause an error.
-            # For now, let's assume it exists or will be added.
-            # If it doesn't exist, remove ", ultima_atualizacao = CURRENT_TIMESTAMP"
+
             try:
                 cursor.execute(
                     "UPDATE categoria SET nome = ?, descricao = ?, ultima_atualizacao = CURRENT_TIMESTAMP WHERE id = ?",
@@ -209,7 +204,7 @@ def gerenciar_categoria_especifica(categoria_id):
                         (novo_nome, nova_descricao, categoria_id),
                     )
                 else:
-                    raise  # re-raise other operational errors
+                    raise
             conn.commit()
             return jsonify(
                 {
@@ -223,7 +218,7 @@ def gerenciar_categoria_especifica(categoria_id):
             )
 
         elif request.method == "DELETE":
-            # Apenas admin pode excluir
+
             if session.get("user_level") not in ["admin"]:
                 return (
                     jsonify(
@@ -268,7 +263,6 @@ def gerenciar_categoria_especifica(categoria_id):
             conn.close()
 
 
-# --- API para Produtos ---
 @produtos_bp.route("/", methods=["GET", "POST"])
 @login_required
 def gerenciar_todos_produtos():
@@ -282,28 +276,21 @@ def gerenciar_todos_produtos():
         cursor = conn.cursor()
 
         if request.method == "GET":
-            # Parâmetros da requisição GET
+
             page = request.args.get("page", 1, type=int)
-            per_page = request.args.get(
-                "per_page", 15, type=int)  # Aumentado padrão
+            per_page = request.args.get("per_page", 15, type=int)
             categoria_id_filter = request.args.get("categoria_id", type=int)
             fornecedor_id_filter = request.args.get("fornecedor_id", type=int)
-            termo_busca = request.args.get(
-                "termo"
-            )  # Para buscar por nome, código, descrição
+            termo_busca = request.args.get("termo")
             estoque_baixo_filter = (
                 request.args.get("estoque_baixo", "").lower() == "true"
             )
             include_inativos = (
                 request.args.get("incluir_inativos", "").lower() == "true"
             )
-            ordenar_por = request.args.get(
-                "ordenar_por", "p.nome"
-            )  # Ex: 'p.nome', 'p.preco', 'p.estoque'
-            direcao_ordem = request.args.get(
-                "direcao", "asc").upper()  # ASC ou DESC
+            ordenar_por = request.args.get("ordenar_por", "p.nome")
+            direcao_ordem = request.args.get("direcao", "asc").upper()
 
-            # A função buscar_produtos de database_utils já lida com a lógica complexa de busca
             resultado_busca = buscar_produtos(
                 termo=termo_busca,
                 categoria_id=categoria_id_filter,
@@ -325,13 +312,12 @@ def gerenciar_todos_produtos():
                     403,
                 )
 
-            # Lida com 'multipart/form-data' (com arquivo) ou 'application/json'
             if request.content_type.startswith("multipart/form-data"):
                 data = request.form
                 file = request.files.get("imagem")
             elif request.content_type.startswith("application/json"):
                 data = request.json
-                file = None  # Imagem via URL no JSON, se houver
+                file = None
             else:
                 return (
                     jsonify(
@@ -342,12 +328,11 @@ def gerenciar_todos_produtos():
                     415,
                 )
 
-            # Extração e validação de dados
             nome = data.get("nome", "").strip()
             codigo = (
                 data.get("codigo", "").strip(
                 ) or f"PROD-{uuid.uuid4().hex[:6].upper()}"
-            )  # Gera código se não fornecido
+            )
             categoria_id_str = data.get("categoria_id")
             preco_str = data.get("preco")
 
@@ -378,11 +363,8 @@ def gerenciar_todos_produtos():
                 return jsonify({"error": f"Valores numéricos inválidos: {e}"}), 400
 
             descricao = data.get("descricao", "").strip()
-            imagem_url = (
-                data.get("imagem_url") if not file else None
-            )  # Prioriza arquivo se ambos forem enviados
+            imagem_url = data.get("imagem_url") if not file else None
 
-            # Validar existência de categoria e fornecedor
             cursor.execute(
                 "SELECT id FROM categoria WHERE id = ?", (categoria_id,))
             if not cursor.fetchone():
@@ -393,7 +375,7 @@ def gerenciar_todos_produtos():
                     404,
                 )
             if fornecedor_id:
-                # Corrected table name
+
                 cursor.execute(
                     "SELECT id FROM fornecedores WHERE id = ?", (
                         fornecedor_id,)
@@ -408,7 +390,6 @@ def gerenciar_todos_produtos():
                         404,
                     )
 
-            # Verificar se código do produto já existe
             cursor.execute(
                 "SELECT id FROM produto WHERE codigo = ?", (codigo,))
             if cursor.fetchone():
@@ -418,26 +399,22 @@ def gerenciar_todos_produtos():
                     409,
                 )
 
-            # Processar imagem, se houver
             if file and allowed_file(file.filename):
-                os.makedirs(
-                    UPLOAD_FOLDER, exist_ok=True
-                )  # Garante que o diretório exista
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 filename_secure = secure_filename(file.filename)
                 unique_filename = f"{uuid.uuid4().hex}_{filename_secure}"
                 filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
                 try:
                     file.save(filepath)
-                    # URL relativa
+
                     imagem_url = f"/{filepath.replace(os.sep, '/')}"
                 except Exception as e_file:
                     current_app.logger.error(
                         f"Erro ao salvar imagem: {e_file}", exc_info=True
                     )
-                    # Continuar sem imagem ou retornar erro? Decidido continuar sem.
+
                     imagem_url = None
 
-            # Inserir produto
             sql_insert_prod = """
                 INSERT INTO produto (codigo, nome, descricao, categoria_id, fornecedor_id, preco, preco_compra, estoque, estoque_minimo, imagem_url, ativo, data_criacao, ultima_atualizacao)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -459,7 +436,6 @@ def gerenciar_todos_produtos():
             produto_id = cursor.lastrowid
             conn.commit()
 
-            # Registrar movimento de estoque inicial, se houver estoque
             if estoque > 0:
                 try:
                     registrar_movimento(
@@ -469,11 +445,10 @@ def gerenciar_todos_produtos():
                         usuario_id=session.get("user_id"),
                         observacao="Estoque inicial (cadastro de produto)",
                     )
-                except Exception as e_mov:  # Captura erros de registrar_movimento
+                except Exception as e_mov:
                     current_app.logger.warning(
                         f"Falha ao registrar movimento inicial para produto ID {produto_id}: {e_mov}"
                     )
-                    # Não reverter a criação do produto, apenas logar o aviso.
 
             return (
                 jsonify(
@@ -508,7 +483,7 @@ def gerenciar_todos_produtos():
 
 @produtos_bp.route("/<int:produto_id>", methods=["GET", "PUT", "DELETE"])
 @login_required
-@acesso_requerido(['admin', 'gerente'])
+@acesso_requerido(["admin", "gerente"])
 def gerenciar_produto_especifico(produto_id):
     """
     GET: Retorna detalhes de um produto.
@@ -520,9 +495,8 @@ def gerenciar_produto_especifico(produto_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        # Função auxiliar para buscar o produto com joins
         def fetch_produto_completo(pid):
-            # Corrected table name for join
+
             cursor.execute(
                 """
                 SELECT p.*, c.nome as categoria_nome, f.nome as fornecedor_nome
@@ -539,12 +513,12 @@ def gerenciar_produto_especifico(produto_id):
         if not produto_data_row:
             return jsonify({"error": "Produto não encontrado."}), 404
 
-        produto_dict_orig = dict(produto_data_row)  # Original para referência
+        produto_dict_orig = dict(produto_data_row)
 
         if request.method == "GET":
-            # Formatar data para exibição
+
             try:
-                # Ensure data_criacao is not None and is a string before formatting
+
                 if produto_dict_orig.get("data_criacao"):
                     dt_obj = datetime.datetime.fromisoformat(
                         str(produto_dict_orig["data_criacao"])
@@ -557,9 +531,9 @@ def gerenciar_produto_especifico(produto_id):
             except (
                 ValueError,
                 TypeError,
-            ):  # Catch potential errors if data_criacao is not a valid ISO format string
+            ):
                 produto_dict_orig["data_criacao_fmt"] = str(
-                    produto_dict_orig.get("data_criacao", "N/A")  # Fallback
+                    produto_dict_orig.get("data_criacao", "N/A")
                 )
             return jsonify(produto_dict_orig)
 
@@ -583,8 +557,6 @@ def gerenciar_produto_especifico(produto_id):
             update_fields_sql = []
             params_update = []
 
-            # Campos permitidos para atualização
-            # Estoque não é atualizado diretamente aqui, mas por movimentação.
             allowed_fields = [
                 "nome",
                 "codigo",
@@ -600,7 +572,7 @@ def gerenciar_produto_especifico(produto_id):
             for field in allowed_fields:
                 if field in data:
                     value = data.get(field)
-                    # Validação de código único se estiver sendo alterado
+
                     if field == "codigo" and value != produto_dict_orig["codigo"]:
                         cursor.execute(
                             "SELECT id FROM produto WHERE codigo = ? AND id != ?",
@@ -614,7 +586,6 @@ def gerenciar_produto_especifico(produto_id):
                                 409,
                             )
 
-                    # Validação de IDs de categoria/fornecedor
                     if field == "categoria_id" and value:
                         cursor.execute(
                             "SELECT id FROM categoria WHERE id = ?", (int(
@@ -627,8 +598,8 @@ def gerenciar_produto_especifico(produto_id):
                                 ),
                                 404,
                             )
-                    if field == "fornecedor_id" and value:  # Fornecedor pode ser None
-                        # Corrected table name
+                    if field == "fornecedor_id" and value:
+
                         cursor.execute(
                             "SELECT id FROM fornecedores WHERE id = ?", (int(
                                 value),)
@@ -642,7 +613,7 @@ def gerenciar_produto_especifico(produto_id):
                             )
 
                     update_fields_sql.append(f"{field} = ?")
-                    # Converter para tipos corretos antes de adicionar aos params
+
                     if field in ["preco", "preco_compra"] and value is not None:
                         try:
                             params_update.append(float(value))
@@ -670,7 +641,6 @@ def gerenciar_produto_especifico(produto_id):
                             value.strip() if isinstance(value, str) else value
                         )
 
-            # Processar nova imagem, se enviada
             if file and allowed_file(file.filename):
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 filename_secure = secure_filename(file.filename)
@@ -678,7 +648,7 @@ def gerenciar_produto_especifico(produto_id):
                 filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
                 try:
                     file.save(filepath)
-                    # Se uma imagem antiga existir e for diferente, excluí-la (opcional)
+
                     if produto_dict_orig.get("imagem_url"):
                         old_image_path_relative = produto_dict_orig[
                             "imagem_url"
@@ -714,14 +684,11 @@ def gerenciar_produto_especifico(produto_id):
             elif (
                 "imagem_url" in data
                 and data["imagem_url"] is None
-                and "imagem_url = ?"
-                not in " ".join(
-                    update_fields_sql
-                )  # Check if not already set to be updated
+                and "imagem_url = ?" not in " ".join(update_fields_sql)
             ):
                 update_fields_sql.append("imagem_url = ?")
                 params_update.append(None)
-                # Excluir imagem antiga se a URL for definida como None
+
                 if produto_dict_orig.get("imagem_url"):
                     old_image_path_relative = produto_dict_orig["imagem_url"].lstrip(
                         "/"
@@ -747,7 +714,7 @@ def gerenciar_produto_especifico(produto_id):
                 return jsonify({"message": "Nenhuma alteração válida fornecida."})
 
             update_fields_sql.append("ultima_atualizacao = CURRENT_TIMESTAMP")
-            params_update.append(produto_id)  # Para a cláusula WHERE
+            params_update.append(produto_id)
 
             sql_update_prod = (
                 f"UPDATE produto SET {', '.join(update_fields_sql)} WHERE id = ?"
@@ -767,9 +734,7 @@ def gerenciar_produto_especifico(produto_id):
             if session.get("user_level") not in ["admin"]:
                 return jsonify({"error": "Permissão negada para excluir produto."}), 403
 
-            # Verificar movimentos de estoque ou vendas associadas
             cursor.execute(
-                # Corrected table name
                 "SELECT COUNT(id) FROM estoque_movimentacao WHERE produto_id = ?",
                 (produto_id,),
             )
@@ -783,7 +748,6 @@ def gerenciar_produto_especifico(produto_id):
                     400,
                 )
 
-            # Adicional: Verificar se está em alguma venda (item_venda)
             try:
                 cursor.execute(
                     "SELECT COUNT(id) FROM item_venda WHERE produto_id = ?",
@@ -799,14 +763,13 @@ def gerenciar_produto_especifico(produto_id):
                         400,
                     )
             except sqlite3.OperationalError as e_item_venda:
-                # Se a tabela item_venda não existir, ignora o erro e continua
+
                 if "no such table" not in str(e_item_venda).lower():
-                    raise  # Relança outros erros de SQL
+                    raise
                 current_app.logger.warning(
                     "Tabela item_venda não encontrada, pulando verificação de vendas para exclusão de produto."
                 )
 
-            # Excluir imagem do disco se existir
             imagem_a_excluir = produto_dict_orig.get("imagem_url")
             if imagem_a_excluir:
                 try:
@@ -817,7 +780,7 @@ def gerenciar_produto_especifico(produto_id):
 
                     if (
                         os.path.exists(caminho_completo_imagem)
-                        and UPLOAD_FOLDER in caminho_completo_imagem  # Security check
+                        and UPLOAD_FOLDER in caminho_completo_imagem
                     ):
                         os.remove(caminho_completo_imagem)
                         current_app.logger.info(
@@ -907,10 +870,6 @@ def alternar_status_produto(produto_id):
             conn.close()
 
 
-# --- Rotas de Relatórios de Produtos (Mais/Menos Vendidos) ---
-# Estas rotas dependem da existência da tabela 'item_venda'.
-
-
 @produtos_bp.route("/mais-vendidos", methods=["GET"])
 @login_required
 @acesso_requerido(["admin", "gerente"])
@@ -923,7 +882,6 @@ def relatorio_produtos_mais_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        # Usando a consulta unificada diretamente no estoque_movimentacao
         count_query = """
             SELECT COUNT(*) FROM (
                 SELECT p.id, COALESCE(SUM(
@@ -967,7 +925,8 @@ def relatorio_produtos_mais_vendidos():
         cursor.execute(query, params)
         produtos_rows = cursor.fetchall()
 
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -979,10 +938,13 @@ def relatorio_produtos_mais_vendidos():
             }
         )
     except sqlite3.Error as e:
-        current_app.logger.error(f"Erro de BD em mais-vendidos: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro de BD em mais-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado em mais-vendidos: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro inesperado em mais-vendidos: {e}", exc_info=True
+        )
         return jsonify({"error": "Erro inesperado no servidor."}), 500
     finally:
         if conn:
@@ -1001,8 +963,8 @@ def relatorio_produtos_menos_vendidos():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 10, type=int)
 
-        # 1. Obter o total de produtos que possuem vendas
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) FROM (
                 SELECT p.id, COALESCE(SUM(
                     CASE
@@ -1016,13 +978,14 @@ def relatorio_produtos_menos_vendidos():
                 GROUP BY p.id
                 HAVING total_vendido > 0
             )
-        """)
+        """
+        )
         total_com_vendas = cursor.fetchone()[0]
 
-        # Se houver mais de 5 produtos com vendas, vamos excluir os top 5 mais vendidos
         excluir_ids = []
         if total_com_vendas > 5:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT p.id, COALESCE(SUM(
                     CASE
                         WHEN em.tipo = 'venda' OR (em.tipo = 'saida' AND em.classificacao = 'venda') THEN ABS(em.quantidade)
@@ -1035,10 +998,10 @@ def relatorio_produtos_menos_vendidos():
                 GROUP BY p.id
                 ORDER BY total_vendido DESC, p.nome ASC
                 LIMIT 5
-            """)
+            """
+            )
             excluir_ids = [row["id"] for row in cursor.fetchall()]
 
-        # Construir as queries com base na exclusão
         where_clause = ""
         query_params = []
         if excluir_ids:
@@ -1046,7 +1009,6 @@ def relatorio_produtos_menos_vendidos():
             where_clause = f"WHERE p.id NOT IN ({placeholders})"
             query_params = list(excluir_ids)
 
-        # Contagem final de itens
         count_query = f"""
             SELECT COUNT(*) FROM (
                 SELECT p.id, COALESCE(SUM(
@@ -1092,7 +1054,8 @@ def relatorio_produtos_menos_vendidos():
         cursor.execute(query, params)
         produtos_rows = cursor.fetchall()
 
-        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+        total_pages = (total_items + per_page -
+                       1) // per_page if per_page > 0 else 1
 
         return jsonify(
             {
@@ -1104,23 +1067,25 @@ def relatorio_produtos_menos_vendidos():
             }
         )
     except sqlite3.Error as e:
-        current_app.logger.error(f"Erro de BD em menos-vendidos: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro de BD em menos-vendidos: {e}", exc_info=True)
         return jsonify({"error": "Erro no banco de dados."}), 500
     except Exception as e:
-        current_app.logger.error(f"Erro inesperado em menos-vendidos: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Erro inesperado em menos-vendidos: {e}", exc_info=True
+        )
         return jsonify({"error": "Erro inesperado no servidor."}), 500
     finally:
         if conn:
             conn.close()
 
 
-# --- Rota para busca de produtos (delegada para database_utils.buscar_produtos) ---
 @produtos_bp.route("/busca", methods=["GET"])
 @login_required
 def api_busca_produto():
     """Endpoint de API para busca avançada de produtos."""
     try:
-        # Coleta e validação de parâmetros de busca
+
         termo = request.args.get("termo")
         categoria_id = request.args.get("categoria_id", type=int)
         fornecedor_id = request.args.get("fornecedor_id", type=int)
@@ -1134,7 +1099,6 @@ def api_busca_produto():
         ordenar_por = request.args.get("ordenar_por", "p.nome")
         direcao = request.args.get("direcao", "ASC")
 
-        # Chama a função de utilidade que contém a lógica de busca
         resultado = buscar_produtos(
             termo=termo,
             categoria_id=categoria_id,
@@ -1154,7 +1118,6 @@ def api_busca_produto():
         return jsonify({"error": "Erro ao processar a busca de produtos."}), 500
 
 
-# --- Rotas de Página HTML (se necessário) ---
 @produtos_bp.route("/page", methods=["GET"])
 @login_required
 def produtos_page_html():
