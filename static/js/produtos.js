@@ -687,8 +687,6 @@ function abrirModalEditarProduto(produtoId) {
       document.getElementById("precoCompraEditar").value =
         produto.preco_compra || "";
       document.getElementById("precoVendaEditar").value = produto.preco || ""; // 'preco' é o preço de venda
-      document.getElementById("estoqueProdutoEditar").value =
-        produto.estoque !== undefined ? produto.estoque : "";
       document.getElementById("estoqueMinimoEditar").value =
         produto.estoque_minimo !== undefined ? produto.estoque_minimo : "";
       document.getElementById("descricaoProdutoEditar").value =

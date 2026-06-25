@@ -132,6 +132,23 @@ function gerarRelatorio() {
       .finally(() => {
         toggleLoading(false);
       });
+  } else if (reportType === "registros_gerais") {
+    axios
+      .get("/relatorios/registros/gerais", { params: { per_page: 500 } })
+      .then((response) => {
+        const data = response.data;
+        renderizarRelatorioRegistrosGerais(data);
+      })
+      .catch((error) => {
+        console.error("Erro ao gerar relatório de registros gerais:", error);
+        showNotification(
+          "Falha ao gerar relatório de registros gerais.",
+          "danger",
+        );
+      })
+      .finally(() => {
+        toggleLoading(false);
+      });
   }
 }
 
@@ -334,7 +351,7 @@ function renderizarRelatorioFornecedores(data, statusFiltro) {
                         <th>Telefone / E-mail</th>
                         <th class="text-center">Total Produtos</th>
                         <th class="text-center">Total Estoque</th>
-                        <th class="text-end">Valor Total em Estoque</th>
+                        <th class="text-end text-nowrap">Valor Total em Estoque</th>
                         <th class="text-center">Status</th>
                     </tr>
                 </thead>
@@ -355,12 +372,12 @@ function renderizarRelatorioFornecedores(data, statusFiltro) {
 
       html += `
                 <tr>
-                    <td class="fw-bold">${item.fornecedor_nome}</td>
-                    <td>${item.cnpj || "-"}</td>
-                    <td>${contatoInfo}</td>
+                    <td class="fw-bold text-break">${item.fornecedor_nome}</td>
+                    <td class="text-nowrap">${item.cnpj || "-"}</td>
+                    <td class="text-break">${contatoInfo}</td>
                     <td class="text-center">${item.total_produtos}</td>
                     <td class="text-center">${item.total_estoque}</td>
-                    <td class="text-end fw-bold">${valorEstoqueFmt}</td>
+                    <td class="text-end fw-bold text-nowrap">${valorEstoqueFmt}</td>
                     <td class="text-center">${statusBadge}</td>
                 </tr>
             `;
@@ -452,6 +469,121 @@ function renderizarRelatorioProdutosPorFornecedor(data) {
   outputCard.style.display = "block";
 }
 
+function renderizarRelatorioRegistrosGerais(data) {
+  const outputCard = document.getElementById("report-output-card");
+  const container = document.getElementById("report-content");
+  const printTitle = document.getElementById("print-report-title");
+
+  printTitle.textContent = "Relatório de Registros Gerais (Movimentações)";
+  container.innerHTML = "";
+
+  const MAP_CLASSIFICACAO = {
+    reposicao: "Reposição",
+    devolucao: "Devolução Cliente",
+    venda: "Venda",
+    roubo: "Roubo",
+    dano: "Dano / Avaria",
+    devolucao_fornecedor: "Devol. Fornecedor",
+    descarte: "Descarte",
+    outro: "Outro Motivo",
+    compra: "Compra",
+  };
+
+  let html = `
+        <div class="table-responsive mt-3">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Data</th>
+                        <th>Produto</th>
+                        <th>Tipo</th>
+                        <th>Classificação</th>
+                        <th class="text-center">Qtd</th>
+                        <th class="text-center">Est. Anterior</th>
+                        <th class="text-center">Est. Atual</th>
+                        <th>Operador</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+  const registros = data.registros || [];
+  if (registros.length === 0) {
+    html += `<tr><td colspan="10" class="text-center text-muted">Nenhum registro encontrado.</td></tr>`;
+  } else {
+    registros.forEach((item) => {
+      const tipoBadge = item.tipo === "entrada" 
+        ? '<span class="badge bg-success">Entrada</span>'
+        : item.tipo === "saida"
+        ? '<span class="badge bg-danger">Saída</span>'
+        : item.tipo === "venda"
+        ? '<span class="badge bg-warning">Venda</span>'
+        : '<span class="badge bg-info">Ajuste</span>';
+      const classificacaoFmt = MAP_CLASSIFICACAO[item.classificacao] || item.classificacao || "-";
+      const dataFmt = item.data_movimento ? new Date(item.data_movimento).toLocaleString("pt-BR") : "-";
+      const observacaoFmt = item.observacao 
+        ? `<span class="text-truncate d-inline-block" style="max-width: 150px;" title="${item.observacao}">${item.observacao}</span>`
+        : "-";
+
+      html += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td class="text-nowrap">${dataFmt}</td>
+                    <td>${item.produto_nome || "N/A"} <small class="text-muted d-block">(${item.produto_codigo || "S/Cód."})</small></td>
+                    <td>${tipoBadge}</td>
+                    <td><span class="badge bg-secondary">${classificacaoFmt}</span></td>
+                    <td class="text-center">${item.quantidade}</td>
+                    <td class="text-center">${item.estoque_anterior !== null ? item.estoque_anterior : "N/A"}</td>
+                    <td class="text-center">${item.estoque_atual !== null ? item.estoque_atual : "N/A"}</td>
+                    <td>${item.usuario_nome || "Sistema"}</td>
+                    <td>${observacaoFmt}</td>
+                </tr>
+            `;
+    });
+  }
+
+  html += `</tbody></table></div>`;
+
+  // Adicionar resumo
+  if (registros.length > 0) {
+    const totalEntradas = registros.filter(r => r.tipo === "entrada").reduce((acc, r) => acc + r.quantidade, 0);
+    const totalSaidas = registros.filter(r => r.tipo === "saida" || r.tipo === "venda").reduce((acc, r) => acc + r.quantidade, 0);
+    html = `
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <div class="card bg-success bg-opacity-10 border-success">
+            <div class="card-body text-center">
+              <h6 class="text-success">Total Entradas</h6>
+              <h4 class="mb-0">${totalEntradas}</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-danger bg-opacity-10 border-danger">
+            <div class="card-body text-center">
+              <h6 class="text-danger">Total Saídas/Vendas</h6>
+              <h4 class="mb-0">${totalSaidas}</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-info bg-opacity-10 border-info">
+            <div class="card-body text-center">
+              <h6 class="text-info">Total de Registros</h6>
+              <h4 class="mb-0">${data.total || registros.length}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+    ` + html;
+  }
+
+  container.innerHTML = html;
+  outputCard.style.display = "block";
+}
+
 function renderizarRelatorioVendasPorOperador(data) {
   const outputCard = document.getElementById("report-output-card");
   const container = document.getElementById("report-content");
@@ -475,6 +607,10 @@ function renderizarRelatorioVendasPorOperador(data) {
                 <tbody>
     `;
 
+  let totalVendidos = 0;
+  let totalDevolvidos = 0;
+  let receitaTotal = 0;
+
   if (data.length === 0) {
     html += `<tr><td colspan="5" class="text-center text-muted">Nenhuma venda registrada para os operadores.</td></tr>`;
   } else {
@@ -483,6 +619,9 @@ function renderizarRelatorioVendasPorOperador(data) {
       const nivelFmt = item.usuario_nivel
         ? item.usuario_nivel.toUpperCase()
         : "-";
+      totalVendidos += item.total_itens_vendidos || 0;
+      totalDevolvidos += item.total_itens_devolvidos || 0;
+      receitaTotal += item.receita_total || 0;
       html += `
                 <tr>
                     <td class="fw-bold">${item.usuario_nome} <small class="text-muted d-block">${item.usuario_email}</small></td>
@@ -493,6 +632,19 @@ function renderizarRelatorioVendasPorOperador(data) {
                 </tr>
             `;
     });
+  }
+
+  // Adicionar linha de totais
+  if (data.length > 0) {
+    const receitaTotalFmt = `R$ ${parseFloat(receitaTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    html += `
+                <tr class="table-primary fw-bold">
+                    <td colspan="2" class="text-end">TOTAL:</td>
+                    <td class="text-center text-success">${totalVendidos}</td>
+                    <td class="text-center text-danger">${totalDevolvidos}</td>
+                    <td class="text-end">${receitaTotalFmt}</td>
+                </tr>
+    `;
   }
 
   html += `</tbody></table></div>`;

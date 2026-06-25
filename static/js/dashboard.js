@@ -27,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (initialSpinner) {
         initialSpinner.style.display = "none";
       }
-      toggleLoading(false);
     });
 });
 
@@ -55,7 +54,6 @@ function carregarEstatisticas() {
     return Promise.reject("API_ROUTES.DASHBOARD_STATS não definido.");
   }
 
-  toggleLoading(true);
   return axios
     .get(API_ROUTES.DASHBOARD_STATS)
     .then((response) => {
@@ -651,6 +649,9 @@ function inicializarListenersEstoque() {
   const btnSubmeterEntrada = document.getElementById("btnSubmeterEntrada");
   const btnSubmeterSaida = document.getElementById("btnSubmeterSaida");
 
+  const userLevel = (window.currentUserInfo?.level || "").toLowerCase();
+  const isOperador = userLevel === "operador";
+
   if (modalEntrada) {
     modalEntrada.addEventListener("show.bs.modal", () => {
       carregarProdutosParaSelect("produtoEntrada");
@@ -660,6 +661,21 @@ function inicializarListenersEstoque() {
   if (modalSaida) {
     modalSaida.addEventListener("show.bs.modal", () => {
       carregarProdutosParaSelect("produtoSaida");
+      // Se for operador, restringir classificação apenas para venda
+      const classificacaoContainer = document.getElementById("classificacaoSaidaContainer");
+      const classificacaoSelect = document.getElementById("classificacaoSaida");
+      if (isOperador) {
+        if (classificacaoSelect) {
+          classificacaoSelect.value = "venda";
+        }
+        if (classificacaoContainer) {
+          classificacaoContainer.style.display = "none";
+        }
+      } else {
+        if (classificacaoContainer) {
+          classificacaoContainer.style.display = "block";
+        }
+      }
     });
   }
 

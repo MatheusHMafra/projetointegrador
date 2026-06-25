@@ -872,7 +872,7 @@ def alternar_status_produto(produto_id):
 
 @produtos_bp.route("/mais-vendidos", methods=["GET"])
 @login_required
-@acesso_requerido(["admin", "gerente"])
+@acesso_requerido(["admin", "gerente", "operador"])
 def relatorio_produtos_mais_vendidos():
     """Retorna uma lista paginada dos produtos mais vendidos."""
     conn = None
@@ -953,7 +953,7 @@ def relatorio_produtos_mais_vendidos():
 
 @produtos_bp.route("/menos-vendidos", methods=["GET"])
 @login_required
-@acesso_requerido(["admin", "gerente"])
+@acesso_requerido(["admin", "gerente", "operador"])
 def relatorio_produtos_menos_vendidos():
     """Retorna uma lista paginada dos produtos menos vendidos (desconsiderando os que têm total de vendas <= 0)."""
     conn = None

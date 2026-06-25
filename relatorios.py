@@ -427,6 +427,91 @@ def get_operator_sales_report():
             conn.close()
 
 
+@relatorios_bp.route("/registros/gerais", methods=["GET"])
+@login_required
+@acesso_requerido(["admin", "gerente"])
+def get_general_records_report():
+    """Gera o relatório de registros gerais (movimentações de estoque)."""
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 50, type=int)
+        classificacao_filter = request.args.get("classificacao")
+        data_inicio_filter = request.args.get("data_inicio")
+        data_fim_filter = request.args.get("data_fim")
+        tipo_filter = request.args.get("tipo")
+
+        query_base = """
+            SELECT 
+                m.id,
+                m.tipo,
+                m.classificacao,
+                m.quantidade,
+                m.estoque_anterior,
+                m.estoque_atual,
+                m.observacao,
+                m.data_movimento,
+                p.nome as produto_nome,
+                p.codigo as produto_codigo,
+                u.nome as usuario_nome
+            FROM estoque_movimentacao m
+            LEFT JOIN produto p ON m.produto_id = p.id
+            LEFT JOIN usuario u ON m.usuario_id = u.id
+        """
+        count_query_base = "SELECT COUNT(m.id) FROM estoque_movimentacao m"
+
+        conditions = []
+        params = []
+
+        if classificacao_filter:
+            conditions.append("m.classificacao = ?")
+            params.append(classificacao_filter)
+        if tipo_filter:
+            conditions.append("m.tipo = ?")
+            params.append(tipo_filter)
+        if data_inicio_filter:
+            conditions.append("DATE(m.data_movimento) >= ?")
+            params.append(data_inicio_filter)
+        if data_fim_filter:
+            conditions.append("DATE(m.data_movimento) <= ?")
+            params.append(data_fim_filter)
+
+        where_sql = ""
+        if conditions:
+            where_sql = " WHERE " + " AND ".join(conditions)
+
+        cursor.execute(count_query_base + where_sql, params)
+        total_items = cursor.fetchone()[0]
+        total_pages = (total_items + per_page - 1) // per_page if per_page > 0 else 1
+
+        order_by_sql = " ORDER BY m.data_movimento DESC"
+        limit_sql = " LIMIT ? OFFSET ?"
+        query_params = params + [per_page, (page - 1) * per_page]
+
+        cursor.execute(query_base + where_sql + order_by_sql + limit_sql, query_params)
+        rows = cursor.fetchall()
+
+        return jsonify({
+            "registros": [dict(row) for row in rows],
+            "total": total_items,
+            "pages": total_pages,
+            "page": page,
+            "per_page": per_page,
+        })
+    except sqlite3.Error as e:
+        current_app.logger.error(f"Erro de BD ao gerar registros gerais: {e}", exc_info=True)
+        return jsonify({"error": "Erro no banco de dados."}), 500
+    except Exception as e:
+        current_app.logger.error(f"Erro inesperado: {e}", exc_info=True)
+        return jsonify({"error": "Erro inesperado."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 @relatorios_bp.route("/page", methods=["GET"])
 @login_required
 @acesso_requerido(["admin", "gerente"])

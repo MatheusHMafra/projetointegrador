@@ -204,9 +204,9 @@ function renderizarTabelaFornecedores(listaFornecedores) {
 
     const actionsTd = canManageFornecedor
       ? `
-                <td class="text-end">
-                    <div class="dropdown d-inline-block">
-                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" aria-expanded="false" title="Mais ações">
+                <td class="text-end position-static">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary table-actions-toggle" type="button" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false" title="Mais ações">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">

@@ -568,6 +568,22 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Permitir que dropdowns escapem da tabela */
+.table-responsive .dropdown {
+  position: relative;
+}
+
+.table-responsive .dropdown-menu {
+  position: absolute;
+  z-index: 1050;
+}
+
+/* Garantir que a célula da tabela permita overflow visível */
+.table td.position-static,
+.table th.position-static {
+  position: static !important;
+}
+
 /* ────────────────────────────────────────────
    10. LIST GROUPS
    ──────────────────────────────────────────── */
