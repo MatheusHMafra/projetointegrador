@@ -66,8 +66,7 @@ def inicializar_dados_exemplo():
             )
 
             categorias = [
-                ("Papelaria", "Itens de papelaria como cadernos, canetas, etc."),
-                ("Escritório", "Material de escritório, organizadores."),
+                ("Escritório e Papelaria", "Itens de escritório e papelaria como cadernos, canetas, etc."),
                 ("Informática", "Acessórios de informática, mouses, teclados."),
                 ("Artesanato", "Materiais para artesanato e pintura."),
                 ("Presentes", "Itens para presentes e embalagens."),
@@ -88,9 +87,9 @@ def inicializar_dados_exemplo():
                     1,
                 ),
                 (
-                    "Papel & Cia Atacadista",
+                    "Atacadista Central Ltda",
                     "44.555.666/0001-77",
-                    "vendas@papelcia.com",
+                    "vendas@atacadistacentral.com",
                     "2144445555",
                     "Avenida dos Cadernos, 456, Rio de Janeiro, RJ",
                     "Ana Lima",
@@ -126,7 +125,7 @@ def inicializar_dados_exemplo():
                 fornecedores,
             )
 
-            cursor.execute("SELECT id FROM categoria WHERE nome = 'Papelaria'")
+            cursor.execute("SELECT id FROM categoria WHERE nome = 'Escritório e Papelaria'")
             cat_papelaria_id = cursor.fetchone()["id"]
             cursor.execute(
                 "SELECT id FROM categoria WHERE nome = 'Escritório'")
@@ -140,7 +139,7 @@ def inicializar_dados_exemplo():
             )
             forn_escolar_id = cursor.fetchone()["id"]
             cursor.execute(
-                "SELECT id FROM fornecedores WHERE nome = 'Papel & Cia Atacadista'"
+                "SELECT id FROM fornecedores WHERE nome = 'Atacadista Central Ltda'"
             )
             forn_papelcia_id = cursor.fetchone()["id"]
             cursor.execute(

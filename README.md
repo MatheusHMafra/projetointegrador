@@ -1,6 +1,10 @@
-# GEP - Sistema de Gerenciamento de Estoque de Papelarias
+# GEP - Sistema de Gerenciamento de Estoque
 
 ## 📋 Sobre o Projeto
+
+Trabalho de Conclusão de Curso (TCC) apresentado ao curso de Sistemas para Internet da UNIVALI - Universidade do Vale do Itajaí, como requisito parcial para obtenção de grau de Tecnólogo em Sistemas para Internet.
+
+**Orientador(a):** Antonio Carlos Silva
 
 O GEP é um sistema web completo para gerenciamento de estoque. O sistema permite o controle de produtos, categorias, fornecedores e movimentações de estoque em uma interface intuitiva e moderna.
 
@@ -34,7 +38,7 @@ O GEP é um sistema web completo para gerenciamento de estoque. O sistema permit
 ### 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/MatheusHMafra/projetointegrador.git
+git clone https://github.com/[seu-usuario]/projetointegrador.git
 cd projetointegrador
 ```
 
@@ -63,3 +67,15 @@ python app.py
 ```
 
 O sistema estará disponível em `http://localhost:5000`
+
+## 📝 Credenciais de Acesso (Desenvolvimento)
+
+| Perfil | E-mail | Senha |
+|--------|--------|-------|
+| Admin | `admin@gep.com` | admin123 |
+| Gerente | `gerente@gep.com` | gerente123 |
+| Operador | `operador@gep.com` | operador123 |
+
+## 📄 Licença
+
+Projeto acadêmico - UNIVALI.
