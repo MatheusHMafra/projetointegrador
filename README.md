@@ -1,8 +1,11 @@
+<!-- markdownlint-disable MD060 -->
 # GEP - Sistema de Gerenciamento de Estoque
 
 ## 📋 Sobre o Projeto
 
-Trabalho de Conclusão de Curso (TCC) apresentado ao curso de Sistemas para Internet da UNIVALI - Universidade do Vale do Itajaí, como requisito parcial para obtenção de grau de Tecnólogo em Sistemas para Internet.
+Trabalho para PGI3 apresentado ao curso de Sistemas para Internet da UNIVALI - Universidade do Vale do Itajaí
+
+**Alunos(as):** Matheus Henrique Tomelin Mafra e Lucas Barcia Lopez Hellmann
 
 **Orientador(a):** Antonio Carlos Silva
 
@@ -28,17 +31,16 @@ O GEP é um sistema web completo para gerenciamento de estoque. O sistema permit
 
 ## 📦 Requisitos
 
-- Python 3.9+
+- Python 3.11+
 - Pip (Gerenciador de pacotes do Python)
 - SQLite3
-- Navegador moderno (Chrome, Firefox, Edge, Safari)
 
 ## 🚀 Instalação e Configuração
 
 ### 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/[seu-usuario]/projetointegrador.git
+git clone https://github.com/MatheusHMafra/projetointegrador.git
 cd projetointegrador
 ```
 
